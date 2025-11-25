@@ -23,6 +23,7 @@
         ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #555; }
 
+        .block-btn { background-size: cover; background-position: center; image-rendering: pixelated; } /* Pixel art style for buttons */
         .block-btn.active { border-color: #fbbf24; transform: scale(1.1); box-shadow: 0 0 10px #fbbf24; }
         .tool-btn.active { background-color: #fbbf24; color: #1e293b; transform: scale(1.05); }
 
@@ -84,13 +85,13 @@
         <!-- Footer: Block Selector -->
         <div class="flex justify-center items-end mb-4 interactive-ui relative">
             <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-700 flex gap-3 backdrop-blur-md shadow-2xl">
-                <!-- Blocks generated via JS -->
-                <button onclick="selectBlock('grass')" id="btn-grass" class="block-btn w-12 h-12 rounded-lg bg-green-600 border-2 border-transparent hover:scale-105 transition-all relative" title="Iarbă"></button>
-                <button onclick="selectBlock('stone')" id="btn-stone" class="block-btn w-12 h-12 rounded-lg bg-gray-500 border-2 border-transparent hover:scale-105 transition-all relative" title="Piatră"></button>
-                <button onclick="selectBlock('dirt')" id="btn-dirt" class="block-btn w-12 h-12 rounded-lg bg-amber-800 border-2 border-transparent hover:scale-105 transition-all relative" title="Pământ"></button>
-                <button onclick="selectBlock('wood')" id="btn-wood" class="block-btn w-12 h-12 rounded-lg bg-amber-600 border-2 border-transparent hover:scale-105 transition-all relative" title="Lemn"></button>
-                <button onclick="selectBlock('brick')" id="btn-brick" class="block-btn w-12 h-12 rounded-lg bg-red-700 border-2 border-transparent hover:scale-105 transition-all relative" title="Cărămidă"></button>
-                <button onclick="selectBlock('glass')" id="btn-glass" class="block-btn w-12 h-12 rounded-lg bg-cyan-300/50 border-2 border-transparent hover:scale-105 transition-all relative" title="Sticlă"></button>
+                <!-- Blocks generated via JS. Note: bg-colors removed to rely on texture images -->
+                <button onclick="selectBlock('grass')" id="btn-grass" class="block-btn w-12 h-12 rounded-lg border-2 border-transparent hover:scale-105 transition-all relative" title="Iarbă"></button>
+                <button onclick="selectBlock('stone')" id="btn-stone" class="block-btn w-12 h-12 rounded-lg border-2 border-transparent hover:scale-105 transition-all relative" title="Piatră"></button>
+                <button onclick="selectBlock('dirt')" id="btn-dirt" class="block-btn w-12 h-12 rounded-lg border-2 border-transparent hover:scale-105 transition-all relative" title="Pământ"></button>
+                <button onclick="selectBlock('wood')" id="btn-wood" class="block-btn w-12 h-12 rounded-lg border-2 border-transparent hover:scale-105 transition-all relative" title="Lemn"></button>
+                <button onclick="selectBlock('brick')" id="btn-brick" class="block-btn w-12 h-12 rounded-lg border-2 border-transparent hover:scale-105 transition-all relative" title="Cărămidă"></button>
+                <button onclick="selectBlock('glass')" id="btn-glass" class="block-btn w-12 h-12 rounded-lg border-2 border-transparent hover:scale-105 transition-all relative" title="Sticlă"></button>
             </div>
             
             <!-- Reset Camera Button (Bottom Right) -->
@@ -209,33 +210,49 @@
     <script>
         /**
          * ------------------------------------------------------------------
-         * GEMINI API CONFIGURATION
+         * GLOBAL DEFINITIONS & CONFIG
          * ------------------------------------------------------------------
          */
-        const apiKey = ""; // Set by environment
-        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        var apiKey = ""; // Set by environment
+        var API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+        var currentActiveQuestion = null;
+        var database = { math: [], physics: [], logic: [] };
+        
+        // 3D Globals
+        var camera, scene, renderer, controls;
+        var plane, raycaster, mouse = new THREE.Vector2();
+        var isShiftDown = false;
+        var rollOverMesh, rollOverMaterial;
+        var objects = [];
+        var materials = {};
+        var isDragging = false;
+        var startMousePos = {x: 0, y: 0};
+        
+        // Game State
+        var GAME_STATE_KEY = 'md_builder_save_v1';
+        var state = { points: 10, blocks: [] };
+        var activeTool = 'build';
+        var currentBlockType = 'grass';
 
-        let currentActiveQuestion = null; // Store current question object for AI context
+        // Utilities
+        function rInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        function shuffle(array) { return array.sort(() => Math.random() - 0.5); }
 
-        // Generic function to call Gemini
+        /**
+         * ------------------------------------------------------------------
+         * GEMINI & QUIZ FUNCTIONS
+         * ------------------------------------------------------------------
+         */
         async function callGemini(prompt, isJson = false) {
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }]
-            };
-            
-            if (isJson) {
-                payload.generationConfig = { responseMimeType: "application/json" };
-            }
-
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
+            if (isJson) payload.generationConfig = { responseMimeType: "application/json" };
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                
                 if (!response.ok) throw new Error('API Error');
-                
                 const data = await response.json();
                 return data.candidates[0].content.parts[0].text;
             } catch (error) {
@@ -247,41 +264,29 @@
         async function generateAIQuestion(category) {
             const categoryMap = { math: 'Matematică', physics: 'Fizică', logic: 'Logică' };
             const catName = categoryMap[category];
-
             const prompt = `Ești un profesor expert pentru clasa a 7-a în Republica Moldova. 
             Generează o întrebare grilă unică, interesantă și educativă din categoria "${catName}".
             Nivel de dificultate: mediu (pentru copii de 13 ani).
             Returnează DOAR un JSON valid cu acest format strict:
-            {
-                "q": "textul întrebării aici",
-                "a": ["varianta 1", "varianta 2", "varianta 3", "varianta 4"],
-                "c": indexul_corect_0_la_3_integer
-            }`;
-
+            { "q": "textul întrebării aici", "a": ["varianta 1", "varianta 2", "varianta 3", "varianta 4"], "c": indexul_corect_0_la_3_integer }`;
             const jsonText = await callGemini(prompt, true);
             return JSON.parse(jsonText);
         }
 
         async function askAIExplanation() {
             if (!currentActiveQuestion) return;
-
             const btn = document.getElementById('btn-explain-ai');
             const container = document.getElementById('ai-explanation-container');
             const textBox = document.getElementById('ai-explanation-text');
-
-            // UI Loading State
             btn.innerHTML = '<div class="loader w-4 h-4 border-2 mr-2"></div> Gândesc...';
             btn.disabled = true;
-
             const correctAns = currentActiveQuestion.a[currentActiveQuestion.c];
-            const prompt = `Explică pe scurt (maxim 2-3 fraze), pe înțelesul unui elev de 13 ani, de ce răspunsul corect la întrebarea "${currentActiveQuestion.q}" este "${correctAns}". 
-            Fii încurajator și educativ. Limba: Română.`;
-
+            const prompt = `Explică pe scurt (maxim 2-3 fraze), pe înțelesul unui elev de 13 ani, de ce răspunsul corect la întrebarea "${currentActiveQuestion.q}" este "${correctAns}". Fii încurajator și educativ. Limba: Română.`;
             try {
                 const explanation = await callGemini(prompt, false);
                 textBox.innerText = explanation;
                 container.classList.remove('hidden');
-                btn.classList.add('hidden'); // Hide button after success
+                btn.classList.add('hidden');
             } catch (error) {
                 showToast("Eroare la conectarea cu AI-ul.", true);
                 btn.innerHTML = '<i class="fas fa-magic"></i> Încearcă din nou ✨';
@@ -289,271 +294,205 @@
             }
         }
 
-        /**
-         * ------------------------------------------------------------------
-         * DATA & PROCEDURAL GENERATION (200+ Questions)
-         * ------------------------------------------------------------------
-         */
-        
-        // --- Utilities ---
-        const rInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-        const shuffle = (array) => array.sort(() => Math.random() - 0.5);
-
-        // --- Math Generator ---
-        function generateMathQuestions(count) {
-            const qs = [];
-            
-            // Type 1: Simple Linear Eq: ax + b = c
-            for(let i=0; i<count/4; i++) {
-                const x = rInt(2, 12);
-                const a = rInt(2, 9);
-                const b = rInt(1, 20);
-                const c = a * x + b;
-                const wrong = [x+rInt(1,3), x-rInt(1,3), x+5];
-                qs.push({
-                    q: `Rezolvă ecuația: ${a}x + ${b} = ${c}`,
-                    a: [`${x}`, ...wrong.map(String)], // Correct answer is always first, finalizeQs will shuffle
-                    c: 0
-                });
-            }
-
-            // Type 2: Arithmetic with Negatives
-            for(let i=0; i<count/4; i++) {
-                const a = rInt(-20, 20);
-                const b = rInt(-20, 20);
-                const res = a - b;
-                const wrong = [res+2, res-2, res*-1];
-                qs.push({
-                    q: `Calculează: ${a} - (${b})`,
-                    a: [`${res}`, `${res+2}`, `${res-2}`, `${res*-1}`], 
-                    c: 0
-                });
-            }
-
-            // Type 3: Area of Rectangle
-            for(let i=0; i<count/4; i++) {
-                const w = rInt(3, 15);
-                const h = rInt(3, 15);
-                const area = w * h;
-                qs.push({
-                    q: `Care este aria unui dreptunghi cu laturile de ${w} cm și ${h} cm?`,
-                    a: [`${area} cm²`, `${2*(w+h)} cm²`, `${area+10} cm²`, `${area/2} cm²`],
-                    c: 0
-                });
-            }
-
-            // Type 4: Powers
-            for(let i=0; i<count/4; i++) {
-                const base = rInt(2, 10);
-                const exp = 2; 
-                const res = base * base;
-                qs.push({
-                    q: `Cât este ${base} la puterea a 2-a (${base}²)?`,
-                    a: [`${res}`, `${base*2}`, `${res+base}`, `${base}`],
-                    c: 0
-                });
-            }
-            return finalizeQs(qs);
+        // UI Functions
+        function openQuizModal() {
+            document.getElementById('quiz-modal').classList.remove('hidden');
+            resetToCategories();
         }
 
-        // --- Physics Generator ---
-        function generatePhysicsQuestions(count) {
-            const qs = [];
-            // Speed (v = d/t)
-            for(let i=0; i<count/3; i++) {
-                const t = rInt(2, 10); // hours
-                const v = rInt(10, 100); // km/h
-                const d = v * t; 
-                qs.push({
-                    q: `Un automobil parcurge ${d} km în ${t} ore. Care este viteza medie?`,
-                    a: [`${v} km/h`, `${v+10} km/h`, `${d} km/h`, `${t} km/h`],
-                    c: 0
-                });
-            }
-            // Weight (G = m * g)
-            for(let i=0; i<count/3; i++) {
-                const m = rInt(1, 50); // kg
-                const g = 10; 
-                const G = m * g;
-                qs.push({
-                    q: `Un corp are masa de ${m} kg. Care este greutatea lui (g=10 N/kg)?`,
-                    a: [`${G} N`, `${m} N`, `${G/2} N`, `${m+10} N`],
-                    c: 0
-                });
-            }
-            // Density (rho = m/V)
-            for(let i=0; i<count/3; i++) {
-                const V = rInt(2, 5); // m3
-                const rho = rInt(2, 5) * 100; // kg/m3
-                const m = rho * V;
-                qs.push({
-                    q: `Un corp cu volumul de ${V} m³ are masa de ${m} kg. Care este densitatea?`,
-                    a: [`${rho} kg/m³`, `${m} kg/m³`, `${rho/2} kg/m³`, `${V*10} kg/m³`],
-                    c: 0
-                });
-            }
-            return finalizeQs(qs);
+        function closeQuizModal() {
+            document.getElementById('quiz-modal').classList.add('hidden');
         }
 
-        // --- Logic Generator ---
-        function generateLogicQuestions(count) {
-            const qs = [];
-            // Sequence +N
-            for(let i=0; i<count/3; i++) {
-                const start = rInt(1, 20);
-                const step = rInt(2, 9);
-                const s = [start, start+step, start+step*2, start+step*3];
-                const ans = start+step*4;
-                qs.push({
-                    q: `Continuă șirul: ${s.join(', ')}, ...`,
-                    a: [`${ans}`, `${ans+1}`, `${ans-1}`, `${ans+step}`],
-                    c: 0
-                });
-            }
-            // Sequence *N (Geometric)
-            for(let i=0; i<count/3; i++) {
-                const start = rInt(1, 5);
-                const mult = rInt(2, 3);
-                const s = [start, start*mult, start*mult*mult];
-                const ans = start*mult*mult*mult;
-                qs.push({
-                    q: `Ce număr urmează: ${s.join(', ')}, ...?`,
-                    a: [`${ans}`, `${ans+mult}`, `${s[2]*2}`, `${ans-1}`],
-                    c: 0
-                });
-            }
-            // Days logic
-            const days = ["Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă", "Duminică"];
-            for(let i=0; i<count/3; i++) {
-                const startIdx = rInt(0, 6);
-                const offset = rInt(2, 5);
-                const endIdx = (startIdx + offset) % 7;
-                qs.push({
-                    q: `Azi e ${days[startIdx]}. Ce zi va fi peste ${offset} zile?`,
-                    a: [`${days[endIdx]}`, `${days[(endIdx+1)%7]}`, `${days[(endIdx+2)%7]}`, `${days[(endIdx-1+7)%7]}`],
-                    c: 0
-                });
-            }
-            return finalizeQs(qs);
+        function resetToCategories() {
+            document.getElementById('category-selection').classList.remove('hidden');
+            document.getElementById('category-selection').classList.add('flex');
+            document.getElementById('question-view').classList.add('hidden');
+            document.getElementById('question-view').classList.remove('flex');
+            document.getElementById('feedback-view').classList.add('hidden');
+            document.getElementById('feedback-view').classList.remove('flex');
+            document.getElementById('ai-explanation-container').classList.add('hidden');
+            const expBtn = document.getElementById('btn-explain-ai');
+            expBtn.classList.remove('hidden');
+            expBtn.innerHTML = '<i class="fas fa-magic"></i> Explică-mi ✨';
+            expBtn.disabled = false;
         }
 
-        // Helper to shuffle answers and set correct index
-        function finalizeQs(list) {
-            return list.map(item => {
-                const correctVal = item.a[0]; // Assume first is correct initially
-                const shuffledA = shuffle([...item.a]);
-                return {
-                    q: item.q,
-                    a: shuffledA,
-                    c: shuffledA.indexOf(correctVal)
-                };
+        async function selectCategory(category) {
+            const useAI = document.getElementById('ai-toggle').checked;
+            if (useAI) {
+                document.getElementById('loading-overlay').classList.remove('hidden');
+                try {
+                    const qData = await generateAIQuestion(category);
+                    displayQuestion(category, qData);
+                } catch (error) {
+                    showToast("Eroare AI. Folosim baza de date locală.", true);
+                    const pool = database[category];
+                    const qData = pool[Math.floor(Math.random() * pool.length)];
+                    displayQuestion(category, qData);
+                } finally {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                }
+            } else {
+                const pool = database[category];
+                if (!pool || pool.length === 0) { showToast("Eroare: Baza de date goală!", true); return; }
+                const qData = pool[Math.floor(Math.random() * pool.length)];
+                displayQuestion(category, qData);
+            }
+        }
+
+        function displayQuestion(category, qData) {
+            currentActiveQuestion = qData;
+            document.getElementById('category-selection').classList.add('hidden');
+            document.getElementById('category-selection').classList.remove('flex');
+            const qView = document.getElementById('question-view');
+            qView.classList.remove('hidden');
+            qView.classList.add('flex');
+            const catNames = { math: 'Matematică', physics: 'Fizică', logic: 'Logică' };
+            document.getElementById('q-category').innerText = catNames[category];
+            document.getElementById('q-text').innerText = qData.q;
+            const ansContainer = document.getElementById('answers-container');
+            ansContainer.innerHTML = '';
+            qData.a.forEach((ansText, index) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-4 rounded-lg border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-gray-700";
+                btn.innerText = `${String.fromCharCode(65 + index)}. ${ansText}`;
+                btn.onclick = () => handleAnswer(index, qData.c);
+                ansContainer.appendChild(btn);
             });
         }
 
-        // --- Static Database (Manual) ---
-        const staticDatabase = {
-            math: [
-                { q: "Suma unghiurilor unui triunghi este întotdeauna:", a: ["90 grade", "180 grade", "360 grade", "100 grade"], c: 1 },
-                { q: "Care este rădăcina pătrată a numărului 144?", a: ["14", "11", "12", "16"], c: 2 },
-                { q: "Cum se scrie 10³ ca număr?", a: ["100", "30", "1000", "300"], c: 2 },
-                { q: "Un triunghi cu două laturi egale se numește:", a: ["Echilateral", "Isoscel", "Dreptunghic", "Oarecare"], c: 1 },
-                { q: "Care este opusul numărului 7?", a: ["1/7", "-7", "0", "7"], c: 1 },
-                { q: "Cel mai mic număr prim este:", a: ["1", "2", "3", "0"], c: 1 },
-                { q: "Dacă a = -2 și b = 3, cât este a × b?", a: ["-6", "6", "5", "-5"], c: 0 },
-                { q: "Modulul numărului -8 este:", a: ["-8", "8", "0", "1"], c: 1 },
-                { q: "Linia mijlocie într-un triunghi este egală cu:", a: ["Jumătate din latura opusă", "Latura opusă", "Dublul laturii opuse", "O treime din latură"], c: 0 },
-                { q: "Care este 20% din 50?", a: ["10", "20", "5", "15"], c: 0 }
-            ],
-            physics: [
-                { q: "Unitatea de măsură pentru Forță în Sistemul Internațional este:", a: ["Kilogram", "Pascal", "Newton", "Joule"], c: 2 },
-                { q: "Densitatea se calculează folosind formula:", a: ["ρ = m • V", "ρ = m / V", "ρ = V / m", "ρ = m + V"], c: 1 },
-                { q: "Instrumentul pentru măsurarea forței se numește:", a: ["Termometru", "Dinamometru", "Barometru", "Vitezometru"], c: 1 },
-                { q: "Viteza este mărimea fizică egală cu raportul dintre:", a: ["Distanță și Timp", "Timp și Distanță", "Forță și Masă", "Masă și Volum"], c: 0 },
-                { q: "Inerția este proprietatea corpurilor de a-și păstra:", a: ["Temperatura", "Starea de repaus sau mișcare", "Culoarea", "Greutatea"], c: 1 },
-                { q: "Care dintre următoarele este o unitate de timp?", a: ["Metrul", "Secunda", "Kilogramul", "Litru"], c: 1 },
-                { q: "Fenomenul de trecere din solid în lichid se numește:", a: ["Topire", "Solidificare", "Condensare", "Vaporizare"], c: 0 },
-                { q: "1 litru de apă cântărește aproximativ:", a: ["100g", "1kg", "10kg", "500g"], c: 1 },
-                { q: "Unitatea de măsură pentru Presiune este:", a: ["Newton", "Pascal", "Joule", "Watt"], c: 1 },
-                { q: "Traiectoria unui corp lăsat să cadă liber este:", a: ["Verticală", "Orizontală", "Circulară", "Sinusoidală"], c: 0 }
-            ],
-            logic: [
-                { q: "Dacă plouă, pământul e ud. Pământul nu e ud. Deci:", a: ["Plouă", "Nu plouă", "Va ploua", "Poate plouă"], c: 1 },
-                { q: "Ce este mai greu? Un kg de pene sau un kg de fier?", a: ["Fierul", "Penele", "Sunt egale", "Depinde de vreme"], c: 2 },
-                { q: "Mama Mariei are 3 fiice: Ana, Irina și ... ?", a: ["Elena", "Ioana", "Maria", "Carmen"], c: 2 },
-                { q: "Câte luni din an au 28 de zile?", a: ["Una singură", "Toate lunile", "Niciuna", "Februarie"], c: 1 },
-                { q: "Ieri a fost Joi. Ce zi va fi poimâine?", a: ["Duminică", "Sâmbătă", "Luni", "Vineri"], c: 0 },
-                { q: "Într-o cursă, depășești persoana de pe locul 2. Pe ce loc ești?", a: ["Locul 1", "Locul 2", "Locul 3", "Ultimul"], c: 1 },
-                { q: "Ce obiect are dinți dar nu poate mușca?", a: ["Câinele", "Pieptenele", "Furculița", "Rechinul"], c: 1 },
-                { q: "Care număr nu se potrivește: 3, 5, 7, 9, 11?", a: ["5", "9", "7", "11"], c: 1 },
-                { q: "Un medic îți dă 3 pastile, una la jumătate de oră. Cât durează?", a: ["1.5 ore", "1 oră", "2 ore", "30 min"], c: 1 },
-                { q: "Câte laturi are un cerc?", a: ["Una", "Două", "0 (infinit)", "Patru"], c: 2 }
-            ]
-        };
-
-        // Initialize and Merge Databases
-        let database = { math: [], physics: [], logic: [] };
-
-        function initQuestions() {
-            // 1. Generate Procedural Questions (200 each)
-            const procMath = generateMathQuestions(200);
-            const procPhys = generatePhysicsQuestions(200);
-            const procLogic = generateLogicQuestions(200);
-
-            // 2. Merge with Static
-            database.math = [...staticDatabase.math, ...procMath];
-            database.physics = [...staticDatabase.physics, ...procPhys];
-            database.logic = [...staticDatabase.logic, ...procLogic];
-
-            // 3. Shuffle final lists
-            database.math = shuffle(database.math);
-            database.physics = shuffle(database.physics);
-            database.logic = shuffle(database.logic);
-            
-            console.log("Database initialized with questions:", 
-                "Math:", database.math.length, 
-                "Physics:", database.physics.length, 
-                "Logic:", database.logic.length);
+        function handleAnswer(selectedIndex, correctIndex) {
+            const qView = document.getElementById('question-view');
+            qView.classList.add('hidden');
+            qView.classList.remove('flex');
+            const fView = document.getElementById('feedback-view');
+            fView.classList.remove('hidden');
+            fView.classList.add('flex');
+            const icon = document.getElementById('feedback-icon');
+            const title = document.getElementById('feedback-title');
+            const msg = document.getElementById('feedback-message');
+            if (selectedIndex === correctIndex) {
+                state.points += 10;
+                saveState();
+                icon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
+                title.innerText = "Corect!";
+                title.className = "text-2xl font-bold mb-2 text-green-600";
+                msg.innerText = "Felicitări! Ai primit 10 puncte de construcție.";
+                showToast("+10 Puncte!", false);
+            } else {
+                icon.innerHTML = '<i class="fas fa-times-circle text-red-500"></i>';
+                title.innerText = "Greșit!";
+                title.className = "text-2xl font-bold mb-2 text-red-600";
+                msg.innerText = "Nu te descuraja! Mai încearcă o dată.";
+            }
         }
 
         /**
          * ------------------------------------------------------------------
-         * GAME STATE MANAGEMENT
+         * DATA GENERATORS
          * ------------------------------------------------------------------
          */
-        const GAME_STATE_KEY = 'md_builder_save_v1';
-        
-        let state = {
-            points: 10,
-            blocks: [] // {x, y, z, type}
+        function finalizeQs(list) {
+            return list.map(item => {
+                const correctVal = item.a[0]; 
+                const shuffledA = shuffle([...item.a]);
+                return { q: item.q, a: shuffledA, c: shuffledA.indexOf(correctVal) };
+            });
+        }
+
+        function generateMathQuestions(count) {
+            const qs = [];
+            for(let i=0; i<count/4; i++) {
+                const x = rInt(2, 12), a = rInt(2, 9), b = rInt(1, 20);
+                const c = a * x + b;
+                qs.push({ q: `Rezolvă ecuația: ${a}x + ${b} = ${c}`, a: [`${x}`, `${x+rInt(1,3)}`, `${x-rInt(1,3)}`, `${x+5}`], c: 0 });
+            }
+            for(let i=0; i<count/4; i++) {
+                const a = rInt(-20, 20), b = rInt(-20, 20), res = a - b;
+                qs.push({ q: `Calculează: ${a} - (${b})`, a: [`${res}`, `${res+2}`, `${res-2}`, `${res*-1}`], c: 0 });
+            }
+            for(let i=0; i<count/4; i++) {
+                const w = rInt(3, 15), h = rInt(3, 15), area = w * h;
+                qs.push({ q: `Care este aria unui dreptunghi cu laturile de ${w} cm și ${h} cm?`, a: [`${area} cm²`, `${2*(w+h)} cm²`, `${area+10} cm²`, `${area/2} cm²`], c: 0 });
+            }
+            for(let i=0; i<count/4; i++) {
+                const base = rInt(2, 10), res = base * base;
+                qs.push({ q: `Cât este ${base} la puterea a 2-a (${base}²)?`, a: [`${res}`, `${base*2}`, `${res+base}`, `${base}`], c: 0 });
+            }
+            return finalizeQs(qs);
+        }
+
+        function generatePhysicsQuestions(count) {
+            const qs = [];
+            for(let i=0; i<count/3; i++) {
+                const t = rInt(2, 10), v = rInt(10, 100), d = v * t;
+                qs.push({ q: `Un automobil parcurge ${d} km în ${t} ore. Care este viteza medie?`, a: [`${v} km/h`, `${v+10} km/h`, `${d} km/h`, `${t} km/h`], c: 0 });
+            }
+            for(let i=0; i<count/3; i++) {
+                const m = rInt(1, 50), G = m * 10;
+                qs.push({ q: `Un corp are masa de ${m} kg. Care este greutatea lui (g=10 N/kg)?`, a: [`${G} N`, `${m} N`, `${G/2} N`, `${m+10} N`], c: 0 });
+            }
+            for(let i=0; i<count/3; i++) {
+                const V = rInt(2, 5), rho = rInt(2, 5) * 100, m = rho * V;
+                qs.push({ q: `Un corp cu volumul de ${V} m³ are masa de ${m} kg. Care este densitatea?`, a: [`${rho} kg/m³`, `${m} kg/m³`, `${rho/2} kg/m³`, `${V*10} kg/m³`], c: 0 });
+            }
+            return finalizeQs(qs);
+        }
+
+        function generateLogicQuestions(count) {
+            const qs = [];
+            for(let i=0; i<count/3; i++) {
+                const start = rInt(1, 20), step = rInt(2, 9), ans = start+step*4;
+                const s = [start, start+step, start+step*2, start+step*3];
+                qs.push({ q: `Continuă șirul: ${s.join(', ')}, ...`, a: [`${ans}`, `${ans+1}`, `${ans-1}`, `${ans+step}`], c: 0 });
+            }
+            for(let i=0; i<count/3; i++) {
+                const start = rInt(1, 5), mult = rInt(2, 3), ans = start*mult*mult*mult;
+                const s = [start, start*mult, start*mult*mult];
+                qs.push({ q: `Ce număr urmează: ${s.join(', ')}, ...?`, a: [`${ans}`, `${ans+mult}`, `${s[2]*2}`, `${ans-1}`], c: 0 });
+            }
+            const days = ["Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă", "Duminică"];
+            for(let i=0; i<count/3; i++) {
+                const startIdx = rInt(0, 6), offset = rInt(2, 5), endIdx = (startIdx + offset) % 7;
+                qs.push({ q: `Azi e ${days[startIdx]}. Ce zi va fi peste ${offset} zile?`, a: [`${days[endIdx]}`, `${days[(endIdx+1)%7]}`, `${days[(endIdx+2)%7]}`, `${days[(endIdx-1+7)%7]}`], c: 0 });
+            }
+            return finalizeQs(qs);
+        }
+
+        var staticDatabase = {
+            math: [ { q: "Suma unghiurilor unui triunghi este întotdeauna:", a: ["90 grade", "180 grade", "360 grade", "100 grade"], c: 1 }, { q: "Care este rădăcina pătrată a numărului 144?", a: ["14", "11", "12", "16"], c: 2 }, { q: "Cum se scrie 10³ ca număr?", a: ["100", "30", "1000", "300"], c: 2 }, { q: "Un triunghi cu două laturi egale se numește:", a: ["Echilateral", "Isoscel", "Dreptunghic", "Oarecare"], c: 1 }, { q: "Care este opusul numărului 7?", a: ["1/7", "-7", "0", "7"], c: 1 }, { q: "Cel mai mic număr prim este:", a: ["1", "2", "3", "0"], c: 1 }, { q: "Dacă a = -2 și b = 3, cât este a × b?", a: ["-6", "6", "5", "-5"], c: 0 }, { q: "Modulul numărului -8 este:", a: ["-8", "8", "0", "1"], c: 1 }, { q: "Linia mijlocie într-un triunghi este egală cu:", a: ["Jumătate din latura opusă", "Latura opusă", "Dublul laturii opuse", "O treime din latură"], c: 0 }, { q: "Care este 20% din 50?", a: ["10", "20", "5", "15"], c: 0 } ],
+            physics: [ { q: "Unitatea de măsură pentru Forță în Sistemul Internațional este:", a: ["Kilogram", "Pascal", "Newton", "Joule"], c: 2 }, { q: "Densitatea se calculează folosind formula:", a: ["ρ = m • V", "ρ = m / V", "ρ = V / m", "ρ = m + V"], c: 1 }, { q: "Instrumentul pentru măsurarea forței se numește:", a: ["Termometru", "Dinamometru", "Barometru", "Vitezometru"], c: 1 }, { q: "Viteza este mărimea fizică egală cu raportul dintre:", a: ["Distanță și Timp", "Timp și Distanță", "Forță și Masă", "Masă și Volum"], c: 0 }, { q: "Inerția este proprietatea corpurilor de a-și păstra:", a: ["Temperatura", "Starea de repaus sau mișcare", "Culoarea", "Greutatea"], c: 1 }, { q: "Care dintre următoarele este o unitate de timp?", a: ["Metrul", "Secunda", "Kilogramul", "Litru"], c: 1 }, { q: "Fenomenul de trecere din solid în lichid se numește:", a: ["Topire", "Solidificare", "Condensare", "Vaporizare"], c: 0 }, { q: "1 litru de apă cântărește aproximativ:", a: ["100g", "1kg", "10kg", "500g"], c: 1 }, { q: "Unitatea de măsură pentru Presiune este:", a: ["Newton", "Pascal", "Joule", "Watt"], c: 1 }, { q: "Traiectoria unui corp lăsat să cadă liber este:", a: ["Verticală", "Orizontală", "Circulară", "Sinusoidală"], c: 0 } ],
+            logic: [ { q: "Dacă plouă, pământul e ud. Pământul nu e ud. Deci:", a: ["Plouă", "Nu plouă", "Va ploua", "Poate plouă"], c: 1 }, { q: "Ce este mai greu? Un kg de pene sau un kg de fier?", a: ["Fierul", "Penele", "Sunt egale", "Depinde de vreme"], c: 2 }, { q: "Mama Mariei are 3 fiice: Ana, Irina și ... ?", a: ["Elena", "Ioana", "Maria", "Carmen"], c: 2 }, { q: "Câte luni din an au 28 de zile?", a: ["Una singură", "Toate lunile", "Niciuna", "Februarie"], c: 1 }, { q: "Ieri a fost Joi. Ce zi va fi poimâine?", a: ["Duminică", "Sâmbătă", "Luni", "Vineri"], c: 0 }, { q: "Într-o cursă, depășești persoana de pe locul 2. Pe ce loc ești?", a: ["Locul 1", "Locul 2", "Locul 3", "Ultimul"], c: 1 }, { q: "Ce obiect are dinți dar nu poate mușca?", a: ["Câinele", "Pieptenele", "Furculița", "Rechinul"], c: 1 }, { q: "Care număr nu se potrivește: 3, 5, 7, 9, 11?", a: ["5", "9", "7", "11"], c: 1 }, { q: "Un medic îți dă 3 pastile, una la jumătate de oră. Cât durează?", a: ["1.5 ore", "1 oră", "2 ore", "30 min"], c: 1 }, { q: "Câte laturi are un cerc?", a: ["Una", "Două", "0 (infinit)", "Patru"], c: 2 } ]
         };
 
-        let activeTool = 'build'; // 'build' or 'destroy'
+        function initQuestions() {
+            const procMath = generateMathQuestions(200);
+            const procPhys = generatePhysicsQuestions(200);
+            const procLogic = generateLogicQuestions(200);
+            database.math = shuffle([...staticDatabase.math, ...procMath]);
+            database.physics = shuffle([...staticDatabase.physics, ...procPhys]);
+            database.logic = shuffle([...staticDatabase.logic, ...procLogic]);
+            console.log("Database initialized.");
+        }
 
-        // Texture Generator
+        /**
+         * ------------------------------------------------------------------
+         * GAME LOGIC
+         * ------------------------------------------------------------------
+         */
         function createTexture(type) {
             const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 64;
+            canvas.width = 64; canvas.height = 64;
             const ctx = canvas.getContext('2d');
-
-            // More saturated/opaque colors
-            const colors = {
-                grass: '#16a34a', // Darker base green
-                stone: '#64748b', // Darker slate
-                dirt: '#854d0e',  // Richer brown
-                wood: '#c2410c',  // Redder/Orange wood
-                brick: '#991b1b', // Deep red
-                glass: 'rgba(165, 243, 252, 0.4)' // Keep glass semi-transparent
-            };
-            
+            const colors = { grass: '#16a34a', stone: '#64748b', dirt: '#854d0e', wood: '#c2410c', brick: '#991b1b', glass: 'rgba(165, 243, 252, 0.4)' };
             ctx.fillStyle = colors[type] || '#ffffff';
             ctx.fillRect(0, 0, 64, 64);
 
             if (type === 'brick') {
                 ctx.fillStyle = '#7f1d1d'; ctx.fillRect(0, 0, 64, 2); ctx.fillRect(0, 32, 64, 2);
                 ctx.fillRect(32, 0, 2, 32); ctx.fillRect(0, 32, 2, 32);
-                ctx.fillStyle = 'rgba(0,0,0,0.2)'; // Darker noise
-                for(let i=0; i<10; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 2, 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.2)'; for(let i=0; i<10; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 2, 2);
             } 
             else if (type === 'wood') {
                 ctx.fillStyle = '#451a03'; ctx.fillRect(0, 0, 64, 64);
@@ -568,20 +507,16 @@
                 ctx.strokeStyle = '#1e293b'; ctx.strokeRect(0,0,64,64);
             } 
             else if (type === 'grass') {
-                ctx.fillStyle = '#15803d'; // Deep green blades
-                for(let i=0; i<30; i++) { ctx.fillRect(Math.random() * 64, Math.random() * 64, 2, 6); }
-                ctx.fillStyle = '#713f12';
-                for(let i=0; i<10; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 2, 2);
+                ctx.fillStyle = '#15803d'; for(let i=0; i<30; i++) { ctx.fillRect(Math.random() * 64, Math.random() * 64, 2, 6); }
+                ctx.fillStyle = '#713f12'; for(let i=0; i<10; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 2, 2);
             }
             else if (type === 'dirt') {
-                ctx.fillStyle = '#713f12'; 
-                for(let i=0; i<40; i++) { ctx.fillRect(Math.random()*60, Math.random()*60, 4, 4); }
+                ctx.fillStyle = '#713f12'; for(let i=0; i<40; i++) { ctx.fillRect(Math.random()*60, Math.random()*60, 4, 4); }
             }
             else if (type === 'glass') {
                 ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.strokeRect(0,0,64,64);
                 ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(10, 10); ctx.lineTo(20, 20); ctx.stroke();
             }
-
             const texture = new THREE.CanvasTexture(canvas);
             texture.magFilter = THREE.NearestFilter;
             return texture;
@@ -591,8 +526,6 @@
             grass: { name: 'Iarbă' }, stone: { name: 'Piatră' }, dirt:  { name: 'Pământ' },
             wood:  { name: 'Lemn' }, brick: { name: 'Cărămidă' }, glass: { name: 'Sticlă', transparent: true, opacity: 0.8 }
         };
-
-        let currentBlockType = 'grass';
 
         function loadState() {
             const saved = localStorage.getItem(GAME_STATE_KEY);
@@ -615,20 +548,20 @@
             document.getElementById('score-display').innerText = state.points;
             document.querySelectorAll('.block-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`btn-${currentBlockType}`).classList.add('active');
-            
-            // Tool UI
             document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`tool-${activeTool}`).classList.add('active');
-            
-            // Ghost Material Update
             if (rollOverMaterial) {
-                rollOverMaterial.color.setHex(activeTool === 'destroy' ? 0xff0000 : 0x00ff00);
+                rollOverMaterial.color.setHex(activeTool === 'destroy' ? 0xff0000 : 0xffffff);
             }
         }
 
         function selectBlock(type) {
             currentBlockType = type;
-            activeTool = 'build'; // Auto switch to build when picking a block
+            activeTool = 'build';
+            if (rollOverMesh && materials[type]) {
+                rollOverMesh.material.map = materials[type].map;
+                rollOverMesh.material.needsUpdate = true;
+            }
             updateUI();
         }
 
@@ -645,153 +578,24 @@
             setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 3000);
         }
 
-        /**
-         * ------------------------------------------------------------------
-         * QUIZ LOGIC
-         * ------------------------------------------------------------------
-         */
-
-        function openQuizModal() {
-            document.getElementById('quiz-modal').classList.remove('hidden');
-            resetToCategories();
+        function resetCamera() {
+            if (!camera || !controls) return;
+            camera.position.set(500, 800, 1300);
+            camera.lookAt(0, 0, 0);
+            controls.target.set(0, 0, 0);
+            controls.update();
         }
-
-        function closeQuizModal() {
-            document.getElementById('quiz-modal').classList.add('hidden');
-        }
-
-        function resetToCategories() {
-            document.getElementById('category-selection').classList.remove('hidden');
-            document.getElementById('category-selection').classList.add('flex');
-            document.getElementById('question-view').classList.add('hidden');
-            document.getElementById('question-view').classList.remove('flex');
-            document.getElementById('feedback-view').classList.add('hidden');
-            document.getElementById('feedback-view').classList.remove('flex');
-            
-            // Reset Explanation UI
-            document.getElementById('ai-explanation-container').classList.add('hidden');
-            const expBtn = document.getElementById('btn-explain-ai');
-            expBtn.classList.remove('hidden');
-            expBtn.innerHTML = '<i class="fas fa-magic"></i> Explică-mi ✨';
-            expBtn.disabled = false;
-        }
-
-        async function selectCategory(category) {
-            const useAI = document.getElementById('ai-toggle').checked;
-            
-            if (useAI) {
-                // AI Flow
-                document.getElementById('loading-overlay').classList.remove('hidden');
-                try {
-                    const qData = await generateAIQuestion(category);
-                    displayQuestion(category, qData);
-                } catch (error) {
-                    showToast("Eroare AI. Folosim baza de date locală.", true);
-                    const pool = database[category];
-                    const qData = pool[Math.floor(Math.random() * pool.length)];
-                    displayQuestion(category, qData);
-                } finally {
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                }
-            } else {
-                // Local Flow
-                const pool = database[category];
-                // Safety check if empty
-                if (!pool || pool.length === 0) {
-                    showToast("Eroare: Baza de date goală!", true);
-                    return;
-                }
-                const qData = pool[Math.floor(Math.random() * pool.length)];
-                displayQuestion(category, qData);
-            }
-        }
-
-        function displayQuestion(category, qData) {
-            currentActiveQuestion = qData; // Save for explanation
-
-            document.getElementById('category-selection').classList.add('hidden');
-            document.getElementById('category-selection').classList.remove('flex');
-            
-            const qView = document.getElementById('question-view');
-            qView.classList.remove('hidden');
-            qView.classList.add('flex');
-
-            const catNames = { math: 'Matematică', physics: 'Fizică', logic: 'Logică' };
-            document.getElementById('q-category').innerText = catNames[category];
-            document.getElementById('q-text').innerText = qData.q;
-            
-            const ansContainer = document.getElementById('answers-container');
-            ansContainer.innerHTML = '';
-
-            qData.a.forEach((ansText, index) => {
-                const btn = document.createElement('button');
-                btn.className = "w-full text-left p-4 rounded-lg border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-gray-700";
-                btn.innerText = `${String.fromCharCode(65 + index)}. ${ansText}`;
-                btn.onclick = () => handleAnswer(index, qData.c);
-                ansContainer.appendChild(btn);
-            });
-        }
-
-        function handleAnswer(selectedIndex, correctIndex) {
-            const qView = document.getElementById('question-view');
-            qView.classList.add('hidden');
-            qView.classList.remove('flex');
-
-            const fView = document.getElementById('feedback-view');
-            fView.classList.remove('hidden');
-            fView.classList.add('flex');
-
-            const icon = document.getElementById('feedback-icon');
-            const title = document.getElementById('feedback-title');
-            const msg = document.getElementById('feedback-message');
-
-            if (selectedIndex === correctIndex) {
-                // Correct
-                state.points += 10;
-                saveState();
-                icon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
-                title.innerText = "Corect!";
-                title.className = "text-2xl font-bold mb-2 text-green-600";
-                msg.innerText = "Felicitări! Ai primit 10 puncte de construcție.";
-                showToast("+10 Puncte!", false);
-            } else {
-                // Wrong
-                icon.innerHTML = '<i class="fas fa-times-circle text-red-500"></i>';
-                title.innerText = "Greșit!";
-                title.className = "text-2xl font-bold mb-2 text-red-600";
-                msg.innerText = "Nu te descuraja! Mai încearcă o dată.";
-            }
-        }
-
-        /**
-         * ------------------------------------------------------------------
-         * THREE.JS WORLD
-         * ------------------------------------------------------------------
-         */
-        
-        let camera, scene, renderer, controls;
-        let plane;
-        let mouse, raycaster, isShiftDown = false;
-        let rollOverMesh, rollOverMaterial;
-        let objects = [];
-        const materials = {};
-        
-        // Touchpad/Interaction Vars
-        let isDragging = false;
-        let startMousePos = {x: 0, y: 0};
 
         function init3D() {
             try {
                 scene = new THREE.Scene();
                 scene.background = new THREE.Color(0xf0f9ff);
-                // Reduced fog significantly to see further
                 scene.fog = new THREE.Fog(0xf0f9ff, 2000, 5000);
 
                 camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
                 camera.position.set(500, 800, 1300);
                 camera.lookAt(0, 0, 0);
 
-                // High contrast grid
                 const gridHelper = new THREE.GridHelper(2000, 40, 0x000000, 0x555555);
                 scene.add(gridHelper);
 
@@ -808,18 +612,12 @@
                 scene.add(plane);
                 objects.push(plane);
 
-                // Stronger lighting
                 const ambientLight = new THREE.AmbientLight(0xaaaaaa);
                 scene.add(ambientLight);
 
                 const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
                 directionalLight.position.set(1, 0.75, 0.5).normalize();
                 scene.add(directionalLight);
-
-                const rollOverGeo = new THREE.BoxGeometry(50, 50, 50);
-                rollOverMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, opacity: 0.5, transparent: true });
-                rollOverMesh = new THREE.Mesh(rollOverGeo, rollOverMaterial);
-                scene.add(rollOverMesh);
 
                 for (const [key, data] of Object.entries(blockTypes)) {
                     const texture = createTexture(key);
@@ -828,7 +626,17 @@
                         transparent: data.transparent || false,
                         opacity: data.opacity || 1
                     });
+                    const btn = document.getElementById(`btn-${key}`);
+                    if(btn) {
+                        const imgData = texture.image.toDataURL();
+                        btn.style.backgroundImage = `url(${imgData})`;
+                    }
                 }
+
+                const rollOverGeo = new THREE.BoxGeometry(50, 50, 50);
+                rollOverMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.5, transparent: true });
+                rollOverMesh = new THREE.Mesh(rollOverGeo, rollOverMaterial);
+                scene.add(rollOverMesh);
 
                 renderer = new THREE.WebGLRenderer({ antialias: true });
                 renderer.setPixelRatio(window.devicePixelRatio);
@@ -836,25 +644,19 @@
                 document.getElementById('game-container').appendChild(renderer.domElement);
 
                 controls = new THREE.OrbitControls(camera, renderer.domElement);
-                controls.enableDamping = true; // Smoother on touchpad
+                controls.enableDamping = true; 
                 controls.dampingFactor = 0.05;
                 controls.update();
 
                 raycaster = new THREE.Raycaster();
-                mouse = new THREE.Vector2();
-
-                document.addEventListener('mousemove', onDocumentMouseMove);
                 
-                // Pointer events for robust Click vs Drag detection
+                document.addEventListener('mousemove', onDocumentMouseMove);
                 const canvas = renderer.domElement;
                 canvas.addEventListener('pointerdown', onPointerDown);
                 canvas.addEventListener('pointerup', onPointerUp);
-                
                 document.addEventListener('keydown', onDocumentKeyDown);
                 document.addEventListener('keyup', onDocumentKeyUp);
                 window.addEventListener('resize', onWindowResize);
-                
-                // Block Context Menu (Browser Menu)
                 window.addEventListener('contextmenu', (e) => e.preventDefault());
 
                 rebuildWorld();
@@ -865,15 +667,6 @@
             }
         }
 
-        // --- NEW: Reset Camera Function ---
-        function resetCamera() {
-            if (!camera || !controls) return;
-            camera.position.set(500, 800, 1300);
-            camera.lookAt(0, 0, 0);
-            controls.target.set(0, 0, 0);
-            controls.update();
-        }
-
         function rebuildWorld() {
             state.blocks.forEach(bData => {
                 const geo = new THREE.BoxGeometry(50, 50, 50);
@@ -881,11 +674,9 @@
                 const voxel = new THREE.Mesh(geo, mat);
                 voxel.position.set(bData.x, bData.y, bData.z);
                 voxel.userData = { isBlock: true };
-                
                 const edges = new THREE.EdgesGeometry(geo);
                 const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, opacity: 0.2, transparent: true }));
                 voxel.add(line);
-
                 scene.add(voxel);
                 objects.push(voxel);
             });
@@ -902,7 +693,6 @@
             mouse.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(objects);
-
             if (intersects.length > 0) {
                 const intersect = intersects[0];
                 rollOverMesh.position.copy(intersect.point).add(intersect.face.normal);
@@ -918,13 +708,9 @@
 
         function onPointerUp(event) {
             if(event.target.closest('.interactive-ui') || event.target.closest('#quiz-modal')) return;
-
-            // Calculate distance moved
             const dx = event.clientX - startMousePos.x;
             const dy = event.clientY - startMousePos.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
-
-            // If moved more than 5 pixels, it's a drag (camera rotate), not a click
             if (dist > 5) return; 
 
             event.preventDefault();
@@ -936,8 +722,6 @@
                 const intersect = intersects[0];
                 const isRightClick = event.button === 2;
 
-                // DESTROY LOGIC
-                // Triggered if: Right Click OR (Left Click AND Tool is 'destroy')
                 if (isRightClick || (activeTool === 'destroy' && !isRightClick)) {
                     if (intersect.object !== plane) {
                         scene.remove(intersect.object);
@@ -947,8 +731,6 @@
                         saveState();
                     }
                 } 
-                // BUILD LOGIC
-                // Triggered if: Left Click AND Tool is 'build'
                 else if (activeTool === 'build' && !isRightClick) {
                     if (state.points <= 0) {
                         showToast("Nu ai suficiente puncte! Răspunde la întrebări.");
@@ -958,18 +740,13 @@
                     voxel.position.copy(intersect.point).add(intersect.face.normal);
                     voxel.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
                     voxel.userData = { isBlock: true };
-
                     const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(50, 50, 50));
                     const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, opacity: 0.2, transparent: true }));
                     voxel.add(line);
-
                     scene.add(voxel);
                     objects.push(voxel);
-
                     state.points--;
-                    state.blocks.push({
-                        x: voxel.position.x, y: voxel.position.y, z: voxel.position.z, type: currentBlockType
-                    });
+                    state.blocks.push({ x: voxel.position.x, y: voxel.position.y, z: voxel.position.z, type: currentBlockType });
                     saveState();
                 }
             }
@@ -977,10 +754,9 @@
 
         function onDocumentKeyDown(event) { if(event.keyCode === 16) isShiftDown = true; }
         function onDocumentKeyUp(event) { if(event.keyCode === 16) isShiftDown = false; }
-        function animate() { requestAnimationFrame(animate); render(); }
-        function render() { if (renderer && scene && camera) renderer.render(scene, camera); }
+        function animate() { requestAnimationFrame(animate); if (renderer && scene && camera) renderer.render(scene, camera); }
 
-        // Start when ready to ensure dependencies are loaded
+        // Start Script
         window.onload = function() {
             try {
                 initQuestions();
