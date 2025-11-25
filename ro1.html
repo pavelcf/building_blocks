@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Constructorul Cunoașterii - Joc 3D</title>
+    <!-- Tailwind CSS for UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; user-select: none; -webkit-user-select: none; }
+        #game-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; outline: none; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+
+        /* Enable pointer events only for UI elements */
+        .interactive-ui { pointer-events: auto; }
+
+        /* Custom Scrollbar for Modal */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .block-btn.active { border-color: #fbbf24; transform: scale(1.1); box-shadow: 0 0 10px #fbbf24; }
+        .tool-btn.active { background-color: #fbbf24; color: #1e293b; transform: scale(1.05); }
+
+        /* Loader */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<!-- 3D Canvas Container -->
+<div id="game-container"></div>
+
+<!-- UI Overlay -->
+<div id="ui-layer" class="flex flex-col justify-between p-4">
+
+    <!-- Header: Points and Stats -->
+    <div class="flex justify-between items-start interactive-ui">
+        <div class="bg-slate-800/90 text-white p-4 rounded-xl border-2 border-slate-600 shadow-lg backdrop-blur-sm">
+            <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Resurse Disponibile</div>
+            <div class="text-3xl font-bold text-yellow-400 flex items-center gap-2">
+                <i class="fas fa-coins"></i>
+                <span id="score-display">10</span>
+            </div>
+            <div class="text-xs text-slate-300 mt-1">Cost bloc: 1 punct</div>
+        </div>
+
+        <!-- Tool Selector (New for Touchpad Usability) -->
+        <div class="flex gap-2 bg-slate-800/90 p-2 rounded-xl border-2 border-slate-600 shadow-lg backdrop-blur-sm">
+            <button onclick="setTool('build')" id="tool-build" class="tool-btn active bg-slate-700 text-white p-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:bg-slate-600" title="Mod Construire (Click Stânga)">
+                <i class="fas fa-hammer"></i> Construiește
+            </button>
+            <button onclick="setTool('destroy')" id="tool-destroy" class="tool-btn bg-slate-700 text-white p-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:bg-red-900/50 hover:text-red-200" title="Mod Demolare (Click Stânga)">
+                <i class="fas fa-trash-alt"></i> Demolează
+            </button>
+        </div>
+
+        <button onclick="openQuizModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all flex items-center gap-2 animate-pulse">
+            <i class="fas fa-brain"></i>
+            Câștigă Puncte (+10)
+        </button>
+    </div>
+
+    <!-- Instructions Helper -->
+    <div class="absolute top-24 right-4 bg-black/50 text-white p-2 rounded text-xs text-right backdrop-blur-sm">
+        <b>SHIFT + Click:</b> Acțiune (Build/Delete)<br>
+        <b>Click + Drag:</b> Rotește Camera<br>
+        <b>Scroll:</b> Zoom<br>
+        <span class="text-yellow-400">Pont: Folosește butoanele de sus<br>pentru a schimba modul!</span>
+    </div>
+
+    <!-- Footer: Block Selector -->
+    <div class="flex justify-center mb-4 interactive-ui">
+        <div class="bg-slate-900/80 p-3 rounded-2xl border border-slate-700 flex gap-3 backdrop-blur-md shadow-2xl">
+            <!-- Blocks generated via JS -->
+            <button onclick="selectBlock('grass')" id="btn-grass" class="block-btn w-12 h-12 rounded-lg bg-green-600 border-2 border-transparent hover:scale-105 transition-all relative" title="Iarbă"></button>
+            <button onclick="selectBlock('stone')" id="btn-stone" class="block-btn w-12 h-12 rounded-lg bg-gray-500 border-2 border-transparent hover:scale-105 transition-all relative" title="Piatră"></button>
+            <button onclick="selectBlock('dirt')" id="btn-dirt" class="block-btn w-12 h-12 rounded-lg bg-amber-800 border-2 border-transparent hover:scale-105 transition-all relative" title="Pământ"></button>
+            <button onclick="selectBlock('wood')" id="btn-wood" class="block-btn w-12 h-12 rounded-lg bg-amber-600 border-2 border-transparent hover:scale-105 transition-all relative" title="Lemn"></button>
+            <button onclick="selectBlock('brick')" id="btn-brick" class="block-btn w-12 h-12 rounded-lg bg-red-700 border-2 border-transparent hover:scale-105 transition-all relative" title="Cărămidă"></button>
+            <button onclick="selectBlock('glass')" id="btn-glass" class="block-btn w-12 h-12 rounded-lg bg-cyan-300/50 border-2 border-transparent hover:scale-105 transition-all relative" title="Sticlă"></button>
+        </div>
+    </div>
+</div>
+
+<!-- Quiz Modal -->
+<div id="quiz-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl w-full max-w-2xl mx-4 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative">
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center">
+            <div class="loader mb-4"></div>
+            <p class="text-indigo-600 font-bold animate-pulse">Inteligența Artificială gândește... ✨</p>
+        </div>
+
+        <!-- Header -->
+        <div class="bg-indigo-600 p-6 flex justify-between items-center text-white">
+            <div>
+                <h2 class="text-2xl font-bold"><i class="fas fa-graduation-cap mr-2"></i>Centrul de Cunoștințe</h2>
+                <p class="text-indigo-200 text-sm">Răspunde corect pentru 10 puncte!</p>
+            </div>
+            <button onclick="closeQuizModal()" class="text-indigo-200 hover:text-white transition-colors">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+
+        <!-- Category Selection -->
+        <div id="category-selection" class="p-8 flex flex-col">
+
+            <!-- AI Toggle -->
+            <div class="flex justify-center mb-6">
+                <label class="flex items-center gap-3 cursor-pointer bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100 hover:bg-indigo-100 transition-colors">
+                    <input type="checkbox" id="ai-toggle" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                    <span class="font-bold text-indigo-700 flex items-center gap-2">
+                            <i class="fas fa-magic"></i> Activează Întrebări AI ✨
+                        </span>
+                </label>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button onclick="selectCategory('math')" class="flex flex-col items-center p-6 bg-blue-50 hover:bg-blue-100 rounded-xl border-2 border-blue-200 transition-all hover:-translate-y-1">
+                    <div class="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center text-white text-2xl mb-4 shadow-lg">
+                        <i class="fas fa-calculator"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-700">Matematică</h3>
+                    <p class="text-xs text-gray-500 text-center mt-2">Ecuații, Geometrie, Puteri</p>
+                </button>
+
+                <button onclick="selectCategory('physics')" class="flex flex-col items-center p-6 bg-purple-50 hover:bg-purple-100 rounded-xl border-2 border-purple-200 transition-all hover:-translate-y-1">
+                    <div class="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center text-white text-2xl mb-4 shadow-lg">
+                        <i class="fas fa-atom"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-700">Fizică</h3>
+                    <p class="text-xs text-gray-500 text-center mt-2">Mișcare, Forțe, Densitate</p>
+                </button>
+
+                <button onclick="selectCategory('logic')" class="flex flex-col items-center p-6 bg-emerald-50 hover:bg-emerald-100 rounded-xl border-2 border-emerald-200 transition-all hover:-translate-y-1">
+                    <div class="w-16 h-16 bg-emerald-500 rounded-full flex items-center justify-center text-white text-2xl mb-4 shadow-lg">
+                        <i class="fas fa-puzzle-piece"></i>
+                    </div>
+                    <h3 class="font-bold text-gray-700">Logică</h3>
+                    <p class="text-xs text-gray-500 text-center mt-2">Deducție, Șiruri, Perspicacitate</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- Question View -->
+        <div id="question-view" class="hidden p-8 flex-col">
+            <div class="mb-2 text-sm font-bold text-indigo-600 uppercase tracking-wide" id="q-category">CATEGORIE</div>
+            <h3 class="text-xl font-medium text-gray-800 mb-6" id="q-text">Întrebarea va apărea aici...</h3>
+
+            <div class="grid grid-cols-1 gap-3" id="answers-container">
+                <!-- Answer buttons injected here -->
+            </div>
+        </div>
+
+        <!-- Feedback View -->
+        <div id="feedback-view" class="hidden p-8 flex-col items-center text-center overflow-y-auto">
+            <div id="feedback-icon" class="text-6xl mb-4"></div>
+            <h3 id="feedback-title" class="text-2xl font-bold mb-2"></h3>
+            <p id="feedback-message" class="text-gray-600 mb-4"></p>
+
+            <!-- AI Explanation Section -->
+            <div id="ai-explanation-container" class="w-full mb-6 hidden">
+                <div id="ai-explanation-text" class="bg-indigo-50 border border-indigo-100 p-4 rounded-lg text-left text-sm text-indigo-800 leading-relaxed italic">
+                    <!-- AI text goes here -->
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="askAIExplanation()" id="btn-explain-ai" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors">
+                    <i class="fas fa-magic"></i> Explică-mi ✨
+                </button>
+                <button onclick="resetToCategories()" class="bg-gray-800 text-white px-6 py-2 rounded-lg hover:bg-gray-700 font-bold">
+                    Continuă
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Notification Toast -->
+<div id="toast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-full shadow-xl translate-y-20 opacity-0 transition-all duration-300 font-bold z-50">
+    Nu ai suficiente puncte!
+</div>
+
+<!-- Three.js Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+    /**
+     * ------------------------------------------------------------------
+     * GEMINI API CONFIGURATION
+     * ------------------------------------------------------------------
+     */
+    const apiKey = ""; // Set by environment
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+
+    let currentActiveQuestion = null; // Store current question object for AI context
+
+    // Generic function to call Gemini
+    async function callGemini(prompt, isJson = false) {
+        const payload = {
+            contents: [{ parts: [{ text: prompt }] }]
+        };
+
+        if (isJson) {
+            payload.generationConfig = { responseMimeType: "application/json" };
+        }
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error('API Error');
+
+            const data = await response.json();
+            return data.candidates[0].content.parts[0].text;
+        } catch (error) {
+            console.error("Gemini API Error:", error);
+            throw error;
+        }
+    }
+
+    async function generateAIQuestion(category) {
+        const categoryMap = { math: 'Matematică', physics: 'Fizică', logic: 'Logică' };
+        const catName = categoryMap[category];
+
+        const prompt = `Ești un profesor expert pentru clasa a 7-a în Republica Moldova.
+            Generează o întrebare grilă unică, interesantă și educativă din categoria "${catName}".
+            Nivel de dificultate: mediu (pentru copii de 13 ani).
+            Returnează DOAR un JSON valid cu acest format strict:
+            {
+                "q": "textul întrebării aici",
+                "a": ["varianta 1", "varianta 2", "varianta 3", "varianta 4"],
+                "c": indexul_corect_0_la_3_integer
+            }`;
+
+        const jsonText = await callGemini(prompt, true);
+        return JSON.parse(jsonText);
+    }
+
+    async function askAIExplanation() {
+        if (!currentActiveQuestion) return;
+
+        const btn = document.getElementById('btn-explain-ai');
+        const container = document.getElementById('ai-explanation-container');
+        const textBox = document.getElementById('ai-explanation-text');
+
+        // UI Loading State
+        btn.innerHTML = '<div class="loader w-4 h-4 border-2 mr-2"></div> Gândesc...';
+        btn.disabled = true;
+
+        const correctAns = currentActiveQuestion.a[currentActiveQuestion.c];
+        const prompt = `Explică pe scurt (maxim 2-3 fraze), pe înțelesul unui elev de 13 ani, de ce răspunsul corect la întrebarea "${currentActiveQuestion.q}" este "${correctAns}".
+            Fii încurajator și educativ. Limba: Română.`;
+
+        try {
+            const explanation = await callGemini(prompt, false);
+            textBox.innerText = explanation;
+            container.classList.remove('hidden');
+            btn.classList.add('hidden'); // Hide button after success
+        } catch (error) {
+            showToast("Eroare la conectarea cu AI-ul.", true);
+            btn.innerHTML = '<i class="fas fa-magic"></i> Încearcă din nou ✨';
+            btn.disabled = false;
+        }
+    }
+
+    /**
+     * ------------------------------------------------------------------
+     * DATA: QUESTIONS DATABASE (Fallback)
+     * ------------------------------------------------------------------
+     */
+    const database = {
+        math: [
+            { q: "Care este rezultatul calculului: -15 + 27?", a: ["12", "-12", "42", "-42"], c: 0 },
+            { q: "Rezolvă ecuația: 2x - 5 = 15", a: ["x = 5", "x = 10", "x = 8", "x = 20"], c: 1 },
+            { q: "Suma unghiurilor unui triunghi este întotdeauna:", a: ["90 grade", "180 grade", "360 grade", "100 grade"], c: 1 },
+            { q: "Care este rădăcina pătrată a numărului 144?", a: ["14", "11", "12", "16"], c: 2 },
+            { q: "Cum se scrie 10³ ca număr?", a: ["100", "30", "1000", "300"], c: 2 },
+            { q: "Un triunghi cu două laturi egale se numește:", a: ["Echilateral", "Isoscel", "Dreptunghic", "Oarecare"], c: 1 },
+            { q: "Care este opusul numărului 7?", a: ["1/7", "-7", "0", "7"], c: 1 }
+        ],
+        physics: [
+            { q: "Unitatea de măsură pentru Forță în Sistemul Internațional este:", a: ["Kilogram", "Pascal", "Newton", "Joule"], c: 2 },
+            { q: "Densitatea se calculează folosind formula:", a: ["ρ = m • V", "ρ = m / V", "ρ = V / m", "ρ = m + V"], c: 1 },
+            { q: "Instrumentul pentru măsurarea forței se numește:", a: ["Termometru", "Dinamometru", "Barometru", "Vitezometru"], c: 1 },
+            { q: "Viteza este mărimea fizică egală cu raportul dintre:", a: ["Distanță și Timp", "Timp și Distanță", "Forță și Masă", "Masă și Volum"], c: 0 },
+            { q: "Inerția este proprietatea corpurilor de a-și păstra:", a: ["Temperatura", "Starea de repaus sau de mișcare rectilinie uniformă", "Culoarea", "Greutatea"], c: 1 },
+            { q: "Care dintre următoarele este o unitate de timp?", a: ["Metrul", "Secunda", "Kilogramul", "Litru"], c: 1 }
+        ],
+        logic: [
+            { q: "Continuă șirul: 2, 4, 8, 16, ...", a: ["20", "24", "30", "32"], c: 3 },
+            { q: "Dacă plouă, pământul e ud. Pământul nu e ud. Deci:", a: ["Plouă", "Nu plouă", "Va ploua", "Poate plouă"], c: 1 },
+            { q: "Ce este mai greu? Un kg de pene sau un kg de fier?", a: ["Fierul", "Penele", "Sunt egale", "Depinde de vreme"], c: 2 },
+            { q: "Mama Mariei are 3 fiice: Ana, Irina și ... ?", a: ["Elena", "Ioana", "Maria", "Carmen"], c: 2 },
+            { q: "Câte luni din an au 28 de zile?", a: ["Una singură (Februarie)", "Toate lunile", "Niciuna", "Doar anii bisecți"], c: 1 }
+        ]
+    };
+
+    /**
+     * ------------------------------------------------------------------
+     * GAME STATE MANAGEMENT
+     * ------------------------------------------------------------------
+     */
+    const GAME_STATE_KEY = 'md_builder_save_v1';
+
+    let state = {
+        points: 10,
+        blocks: [] // {x, y, z, type}
+    };
+
+    let activeTool = 'build'; // 'build' or 'destroy'
+
+    // Texture Generator
+    function createTexture(type) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+
+        const colors = {
+            grass: '#4ade80', stone: '#94a3b8', dirt: '#92400e',
+            wood: '#d97706', brick: '#b91c1c', glass: 'rgba(165, 243, 252, 0.3)'
+        };
+
+        ctx.fillStyle = colors[type] || '#ffffff';
+        ctx.fillRect(0, 0, 64, 64);
+
+        if (type === 'brick') {
+            ctx.fillStyle = '#7f1d1d'; ctx.fillRect(0, 0, 64, 2); ctx.fillRect(0, 32, 64, 2);
+            ctx.fillRect(32, 0, 2, 32); ctx.fillRect(0, 32, 2, 32);
+            ctx.fillStyle = 'rgba(0,0,0,0.1)';
+            for(let i=0; i<10; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 2, 2);
+        }
+        else if (type === 'wood') {
+            ctx.fillStyle = '#78350f'; ctx.fillRect(0, 0, 64, 64);
+            ctx.fillStyle = '#d97706'; ctx.fillRect(2, 2, 60, 18); ctx.fillRect(2, 22, 60, 18); ctx.fillRect(2, 42, 60, 18);
+            ctx.fillStyle = '#451a03'; ctx.fillRect(5, 10, 2, 2); ctx.fillRect(58, 30, 2, 2);
+        }
+        else if (type === 'stone') {
+            for(let i=0; i<50; i++) {
+                ctx.fillStyle = Math.random() > 0.5 ? '#64748b' : '#cbd5e1';
+                ctx.fillRect(Math.random()*60, Math.random()*60, Math.random()*10, Math.random()*10);
+            }
+            ctx.strokeStyle = '#475569'; ctx.strokeRect(0,0,64,64);
+        }
+        else if (type === 'grass') {
+            ctx.fillStyle = '#16a34a';
+            for(let i=0; i<30; i++) { ctx.fillRect(Math.random() * 64, Math.random() * 64, 2, 6); }
+            ctx.fillStyle = '#92400e';
+            for(let i=0; i<10; i++) ctx.fillRect(Math.random()*64, Math.random()*64, 2, 2);
+        }
+        else if (type === 'dirt') {
+            ctx.fillStyle = '#78350f';
+            for(let i=0; i<40; i++) { ctx.fillRect(Math.random()*60, Math.random()*60, 4, 4); }
+        }
+        else if (type === 'glass') {
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.strokeRect(0,0,64,64);
+            ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(10, 10); ctx.lineTo(20, 20); ctx.stroke();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.magFilter = THREE.NearestFilter;
+        return texture;
+    }
+
+    const blockTypes = {
+        grass: { name: 'Iarbă' }, stone: { name: 'Piatră' }, dirt:  { name: 'Pământ' },
+        wood:  { name: 'Lemn' }, brick: { name: 'Cărămidă' }, glass: { name: 'Sticlă', transparent: true, opacity: 0.8 }
+    };
+
+    let currentBlockType = 'grass';
+
+    function loadState() {
+        const saved = localStorage.getItem(GAME_STATE_KEY);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                state.points = parsed.points ?? 10;
+                state.blocks = parsed.blocks ?? [];
+            } catch(e) { console.error("Save file corrupted, resetting."); }
+        }
+        updateUI();
+    }
+
+    function saveState() {
+        localStorage.setItem(GAME_STATE_KEY, JSON.stringify(state));
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('score-display').innerText = state.points;
+        document.querySelectorAll('.block-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-${currentBlockType}`).classList.add('active');
+
+        // Tool UI
+        document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`tool-${activeTool}`).classList.add('active');
+
+        // Ghost Material Update
+        if (rollOverMaterial) {
+            rollOverMaterial.color.setHex(activeTool === 'destroy' ? 0xff0000 : 0x00ff00);
+        }
+    }
+
+    function selectBlock(type) {
+        currentBlockType = type;
+        activeTool = 'build'; // Auto switch to build when picking a block
+        updateUI();
+    }
+
+    function setTool(tool) {
+        activeTool = tool;
+        updateUI();
+    }
+
+    function showToast(msg, isError = true) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.className = `fixed bottom-24 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-xl transition-all duration-300 font-bold z-50 ${isError ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`;
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        setTimeout(() => { toast.classList.add('translate-y-20', 'opacity-0'); }, 3000);
+    }
+
+    /**
+     * ------------------------------------------------------------------
+     * QUIZ LOGIC
+     * ------------------------------------------------------------------
+     */
+
+    function openQuizModal() {
+        document.getElementById('quiz-modal').classList.remove('hidden');
+        resetToCategories();
+    }
+
+    function closeQuizModal() {
+        document.getElementById('quiz-modal').classList.add('hidden');
+    }
+
+    function resetToCategories() {
+        document.getElementById('category-selection').classList.remove('hidden');
+        document.getElementById('category-selection').classList.add('flex');
+        document.getElementById('question-view').classList.add('hidden');
+        document.getElementById('question-view').classList.remove('flex');
+        document.getElementById('feedback-view').classList.add('hidden');
+        document.getElementById('feedback-view').classList.remove('flex');
+
+        // Reset Explanation UI
+        document.getElementById('ai-explanation-container').classList.add('hidden');
+        const expBtn = document.getElementById('btn-explain-ai');
+        expBtn.classList.remove('hidden');
+        expBtn.innerHTML = '<i class="fas fa-magic"></i> Explică-mi ✨';
+        expBtn.disabled = false;
+    }
+
+    async function selectCategory(category) {
+        const useAI = document.getElementById('ai-toggle').checked;
+
+        if (useAI) {
+            // AI Flow
+            document.getElementById('loading-overlay').classList.remove('hidden');
+            try {
+                const qData = await generateAIQuestion(category);
+                displayQuestion(category, qData);
+            } catch (error) {
+                showToast("Eroare AI. Folosim baza de date locală.", true);
+                const pool = database[category];
+                const qData = pool[Math.floor(Math.random() * pool.length)];
+                displayQuestion(category, qData);
+            } finally {
+                document.getElementById('loading-overlay').classList.add('hidden');
+            }
+        } else {
+            // Local Flow
+            const pool = database[category];
+            const qData = pool[Math.floor(Math.random() * pool.length)];
+            displayQuestion(category, qData);
+        }
+    }
+
+    function displayQuestion(category, qData) {
+        currentActiveQuestion = qData; // Save for explanation
+
+        document.getElementById('category-selection').classList.add('hidden');
+        document.getElementById('category-selection').classList.remove('flex');
+
+        const qView = document.getElementById('question-view');
+        qView.classList.remove('hidden');
+        qView.classList.add('flex');
+
+        const catNames = { math: 'Matematică', physics: 'Fizică', logic: 'Logică' };
+        document.getElementById('q-category').innerText = catNames[category];
+        document.getElementById('q-text').innerText = qData.q;
+
+        const ansContainer = document.getElementById('answers-container');
+        ansContainer.innerHTML = '';
+
+        qData.a.forEach((ansText, index) => {
+            const btn = document.createElement('button');
+            btn.className = "w-full text-left p-4 rounded-lg border-2 border-gray-200 hover:border-indigo-500 hover:bg-indigo-50 transition-all font-medium text-gray-700";
+            btn.innerText = `${String.fromCharCode(65 + index)}. ${ansText}`;
+            btn.onclick = () => handleAnswer(index, qData.c);
+            ansContainer.appendChild(btn);
+        });
+    }
+
+    function handleAnswer(selectedIndex, correctIndex) {
+        const qView = document.getElementById('question-view');
+        qView.classList.add('hidden');
+        qView.classList.remove('flex');
+
+        const fView = document.getElementById('feedback-view');
+        fView.classList.remove('hidden');
+        fView.classList.add('flex');
+
+        const icon = document.getElementById('feedback-icon');
+        const title = document.getElementById('feedback-title');
+        const msg = document.getElementById('feedback-message');
+
+        if (selectedIndex === correctIndex) {
+            // Correct
+            state.points += 10;
+            saveState();
+            icon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
+            title.innerText = "Corect!";
+            title.className = "text-2xl font-bold mb-2 text-green-600";
+            msg.innerText = "Felicitări! Ai primit 10 puncte de construcție.";
+            showToast("+10 Puncte!", false);
+        } else {
+            // Wrong
+            icon.innerHTML = '<i class="fas fa-times-circle text-red-500"></i>';
+            title.innerText = "Greșit!";
+            title.className = "text-2xl font-bold mb-2 text-red-600";
+            msg.innerText = "Nu te descuraja! Mai încearcă o dată.";
+        }
+    }
+
+    /**
+     * ------------------------------------------------------------------
+     * THREE.JS WORLD
+     * ------------------------------------------------------------------
+     */
+
+    let camera, scene, renderer;
+    let plane;
+    let mouse, raycaster, isShiftDown = false;
+    let rollOverMesh, rollOverMaterial;
+    let objects = [];
+    const materials = {};
+
+    // Touchpad/Interaction Vars
+    let isDragging = false;
+    let startMousePos = {x: 0, y: 0};
+
+    function init3D() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f9ff);
+        scene.fog = new THREE.Fog(0xf0f9ff, 100, 1500);
+
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
+        camera.position.set(500, 800, 1300);
+        camera.lookAt(0, 0, 0);
+
+        const gridHelper = new THREE.GridHelper(2000, 40, 0x444444, 0xcccccc);
+        scene.add(gridHelper);
+
+        const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+        const groundMat = new THREE.MeshBasicMaterial({ color: 0xe2e8f0, side: THREE.DoubleSide });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -1;
+        scene.add(ground);
+
+        const geometry = new THREE.PlaneGeometry(2000, 2000);
+        geometry.rotateX(-Math.PI / 2);
+        plane = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
+        scene.add(plane);
+        objects.push(plane);
+
+        const ambientLight = new THREE.AmbientLight(0x606060);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff);
+        directionalLight.position.set(1, 0.75, 0.5).normalize();
+        scene.add(directionalLight);
+
+        const rollOverGeo = new THREE.BoxGeometry(50, 50, 50);
+        rollOverMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, opacity: 0.5, transparent: true });
+        rollOverMesh = new THREE.Mesh(rollOverGeo, rollOverMaterial);
+        scene.add(rollOverMesh);
+
+        for (const [key, data] of Object.entries(blockTypes)) {
+            const texture = createTexture(key);
+            materials[key] = new THREE.MeshLambertMaterial({
+                map: texture,
+                transparent: data.transparent || false,
+                opacity: data.opacity || 1
+            });
+        }
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('game-container').appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // Smoother on touchpad
+        controls.dampingFactor = 0.05;
+        controls.update();
+
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+
+        document.addEventListener('mousemove', onDocumentMouseMove);
+
+        // Pointer events for robust Click vs Drag detection
+        const canvas = renderer.domElement;
+        canvas.addEventListener('pointerdown', onPointerDown);
+        canvas.addEventListener('pointerup', onPointerUp);
+
+        document.addEventListener('keydown', onDocumentKeyDown);
+        document.addEventListener('keyup', onDocumentKeyUp);
+        window.addEventListener('resize', onWindowResize);
+
+        // Block Context Menu (Browser Menu)
+        window.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        rebuildWorld();
+        selectBlock('grass');
+    }
+
+    function rebuildWorld() {
+        state.blocks.forEach(bData => {
+            const geo = new THREE.BoxGeometry(50, 50, 50);
+            const mat = materials[bData.type];
+            const voxel = new THREE.Mesh(geo, mat);
+            voxel.position.set(bData.x, bData.y, bData.z);
+            voxel.userData = { isBlock: true };
+
+            const edges = new THREE.EdgesGeometry(geo);
+            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, opacity: 0.2, transparent: true }));
+            voxel.add(line);
+
+            scene.add(voxel);
+            objects.push(voxel);
+        });
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function onDocumentMouseMove(event) {
+        event.preventDefault();
+        mouse.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(objects);
+
+        if (intersects.length > 0) {
+            const intersect = intersects[0];
+            rollOverMesh.position.copy(intersect.point).add(intersect.face.normal);
+            rollOverMesh.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+        }
+    }
+
+    function onPointerDown(event) {
+        if(event.target.closest('.interactive-ui') || event.target.closest('#quiz-modal')) return;
+        startMousePos = { x: event.clientX, y: event.clientY };
+        isDragging = false;
+    }
+
+    function onPointerUp(event) {
+        if(event.target.closest('.interactive-ui') || event.target.closest('#quiz-modal')) return;
+
+        // Calculate distance moved
+        const dx = event.clientX - startMousePos.x;
+        const dy = event.clientY - startMousePos.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+
+        // If moved more than 5 pixels, it's a drag (camera rotate), not a click
+        if (dist > 5) return;
+
+        // Only act if Shift is held OR if simple click mode is desired (let's stick to Shift for safety but Tool for logic)
+        // UPDATE: Making Shift OPTIONAL if we are precise with clicks.
+        // If dragging occurred, we returned above. So this IS a click.
+
+        // Logic: if Shift is held OR user just clicks normally (since we separated drag)
+        if (!isShiftDown && event.button !== 2) {
+            // Check if we want to allow click-to-build without Shift.
+            // Let's allow it because we successfully filtered out drags!
+        }
+
+        event.preventDefault();
+        mouse.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(objects);
+
+        if (intersects.length > 0) {
+            const intersect = intersects[0];
+            const isRightClick = event.button === 2;
+
+            // DESTROY LOGIC
+            // Triggered if: Right Click OR (Left Click AND Tool is 'destroy')
+            if (isRightClick || (activeTool === 'destroy' && !isRightClick)) {
+                if (intersect.object !== plane) {
+                    scene.remove(intersect.object);
+                    objects.splice(objects.indexOf(intersect.object), 1);
+                    const p = intersect.object.position;
+                    state.blocks = state.blocks.filter(b => !(b.x === p.x && b.y === p.y && b.z === p.z));
+                    saveState();
+                }
+            }
+                // BUILD LOGIC
+            // Triggered if: Left Click AND Tool is 'build'
+            else if (activeTool === 'build' && !isRightClick) {
+                if (state.points <= 0) {
+                    showToast("Nu ai suficiente puncte! Răspunde la întrebări.");
+                    return;
+                }
+                const voxel = new THREE.Mesh(new THREE.BoxGeometry(50, 50, 50), materials[currentBlockType]);
+                voxel.position.copy(intersect.point).add(intersect.face.normal);
+                voxel.position.divideScalar(50).floor().multiplyScalar(50).addScalar(25);
+                voxel.userData = { isBlock: true };
+
+                const edges = new THREE.EdgesGeometry(new THREE.BoxGeometry(50, 50, 50));
+                const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x000000, opacity: 0.2, transparent: true }));
+                voxel.add(line);
+
+                scene.add(voxel);
+                objects.push(voxel);
+
+                state.points--;
+                state.blocks.push({
+                    x: voxel.position.x, y: voxel.position.y, z: voxel.position.z, type: currentBlockType
+                });
+                saveState();
+            }
+        }
+    }
+
+    function onDocumentKeyDown(event) { if(event.keyCode === 16) isShiftDown = true; }
+    function onDocumentKeyUp(event) { if(event.keyCode === 16) isShiftDown = false; }
+    function animate() { requestAnimationFrame(animate); render(); }
+    function render() { renderer.render(scene, camera); }
+
+    loadState();
+    init3D();
+    animate();
+
+</script>
+</body>
+</html>
