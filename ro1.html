@@ -48,8 +48,18 @@
     <div id="ui-layer" class="flex flex-col justify-between p-4">
         
         <!-- Header: Points and Stats -->
-        <div class="flex justify-between items-start interactive-ui">
-            <div class="bg-slate-800/90 text-white p-4 rounded-xl border-2 border-slate-600 shadow-lg backdrop-blur-sm">
+        <div class="flex justify-between items-start interactive-ui w-full">
+            <!-- Left: Game Manager -->
+            <button onclick="openSaveManager()" class="bg-slate-800/90 text-white p-4 rounded-xl border-2 border-slate-600 shadow-lg backdrop-blur-sm hover:bg-slate-700 transition-all flex items-center gap-2 mr-4">
+                <i class="fas fa-save text-yellow-400"></i>
+                <div class="flex flex-col items-start">
+                    <span class="text-xs text-slate-400 uppercase font-bold tracking-wider">Joc Activ</span>
+                    <span id="current-game-name" class="font-bold truncate max-w-[100px]">...</span>
+                </div>
+            </button>
+
+            <!-- Center: Points -->
+            <div class="bg-slate-800/90 text-white p-4 rounded-xl border-2 border-slate-600 shadow-lg backdrop-blur-sm flex-1 max-w-xs mx-auto">
                 <div class="text-xs text-slate-400 uppercase font-bold tracking-wider">Resurse Disponibile</div>
                 <div class="text-3xl font-bold text-yellow-400 flex items-center gap-2">
                     <i class="fas fa-coins"></i>
@@ -58,24 +68,26 @@
                 <div class="text-xs text-slate-300 mt-1">Cost bloc: 1 punct</div>
             </div>
 
-            <!-- Tool Selector (New for Touchpad Usability) -->
-            <div class="flex gap-2 bg-slate-800/90 p-2 rounded-xl border-2 border-slate-600 shadow-lg backdrop-blur-sm">
-                <button onclick="setTool('build')" id="tool-build" class="tool-btn active bg-slate-700 text-white p-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:bg-slate-600" title="Mod Construire (Click Stânga)">
-                    <i class="fas fa-hammer"></i> Construiește
+            <!-- Right: Tools & Quiz -->
+            <div class="flex flex-col items-end gap-2 ml-4">
+                <button onclick="openQuizModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all flex items-center gap-2 animate-pulse mb-2">
+                    <i class="fas fa-brain"></i>
+                    Câștigă Puncte
                 </button>
-                <button onclick="setTool('destroy')" id="tool-destroy" class="tool-btn bg-slate-700 text-white p-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:bg-red-900/50 hover:text-red-200" title="Mod Demolare (Click Stânga)">
-                    <i class="fas fa-trash-alt"></i> Demolează
-                </button>
-            </div>
 
-            <button onclick="openQuizModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all flex items-center gap-2 animate-pulse">
-                <i class="fas fa-brain"></i>
-                Câștigă Puncte
-            </button>
+                <div class="flex gap-2 bg-slate-800/90 p-2 rounded-xl border-2 border-slate-600 shadow-lg backdrop-blur-sm">
+                    <button onclick="setTool('build')" id="tool-build" class="tool-btn active bg-slate-700 text-white p-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:bg-slate-600" title="Mod Construire (Click Stânga)">
+                        <i class="fas fa-hammer"></i>
+                    </button>
+                    <button onclick="setTool('destroy')" id="tool-destroy" class="tool-btn bg-slate-700 text-white p-3 rounded-lg font-bold flex items-center gap-2 transition-all hover:bg-red-900/50 hover:text-red-200" title="Mod Demolare (Click Stânga)">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Instructions Helper -->
-        <div class="absolute top-24 right-4 bg-black/50 text-white p-2 rounded text-xs text-right backdrop-blur-sm">
+        <div class="absolute top-32 right-4 bg-black/50 text-white p-2 rounded text-xs text-right backdrop-blur-sm">
             <b>SHIFT + Click:</b> Acțiune (Build/Delete)<br>
             <b>Click + Drag:</b> Rotește Camera<br>
             <b>Scroll:</b> Zoom<br>
@@ -98,6 +110,29 @@
             <button onclick="resetCamera()" class="absolute right-4 bottom-2 bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-full shadow-lg border-2 border-slate-500 transition-all" title="Resetează Camera">
                 <i class="fas fa-video"></i>
             </button>
+        </div>
+    </div>
+
+    <!-- Save Manager Modal -->
+    <div id="save-manager-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="bg-white rounded-2xl w-full max-w-lg mx-4 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="bg-slate-800 p-6 flex justify-between items-center text-white">
+                <h2 class="text-xl font-bold"><i class="fas fa-save mr-2"></i>Manager Jocuri</h2>
+                <button onclick="closeSaveManager()" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 flex-1 overflow-y-auto">
+                <button onclick="createNewGame()" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-xl font-bold shadow-md flex items-center justify-center gap-2 mb-6 transition-all">
+                    <i class="fas fa-plus-circle"></i> Creează Joc Nou
+                </button>
+
+                <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Jocuri Salvate</h3>
+                <div id="save-list" class="flex flex-col gap-3">
+                    <!-- Save items injected here -->
+                </div>
+            </div>
         </div>
     </div>
 
@@ -264,7 +299,12 @@
         var startMousePos = {x: 0, y: 0};
         
         // Game State
-        var GAME_STATE_KEY = 'md_builder_save_v2';
+        const META_KEY = 'md_builder_meta';
+        const SAVE_PREFIX = 'md_builder_data_';
+        // Old key for migration
+        const OLD_GAME_STATE_KEY = 'md_builder_save_v2';
+
+        var currentSaveId = null;
         var state = { points: 10, blocks: [] };
         var activeTool = 'build';
         var currentBlockType = 'grass';
@@ -273,6 +313,168 @@
         function rInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
         function shuffle(array) { return array.sort(() => Math.random() - 0.5); }
         function gcd(a, b) { return b == 0 ? a : gcd(b, a % b); }
+
+        /**
+         * ------------------------------------------------------------------
+         * SAVE SYSTEM
+         * ------------------------------------------------------------------
+         */
+        function initSaveSystem() {
+            // 1. Check migration
+            const oldData = localStorage.getItem(OLD_GAME_STATE_KEY);
+            let meta = getMeta();
+
+            if (oldData && meta.saves.length === 0) {
+                // Migrate old save to new system
+                const newId = 'save_' + Date.now();
+                const saveData = JSON.parse(oldData);
+                saveGameData(newId, saveData);
+                
+                meta.saves.push({ id: newId, name: 'Joc Migrat', date: new Date().toLocaleString() });
+                meta.lastPlayed = newId;
+                localStorage.setItem(META_KEY, JSON.stringify(meta));
+                localStorage.removeItem(OLD_GAME_STATE_KEY); // Clean up
+                console.log("Migrated legacy save.");
+            }
+
+            // 2. Load last played or create new
+            if (meta.lastPlayed && localStorage.getItem(SAVE_PREFIX + meta.lastPlayed)) {
+                loadGame(meta.lastPlayed);
+            } else if (meta.saves.length > 0) {
+                loadGame(meta.saves[0].id);
+            } else {
+                createNewGame();
+            }
+        }
+
+        function getMeta() {
+            const raw = localStorage.getItem(META_KEY);
+            return raw ? JSON.parse(raw) : { saves: [], lastPlayed: null };
+        }
+
+        function saveGameData(id, data) {
+            localStorage.setItem(SAVE_PREFIX + id, JSON.stringify(data));
+        }
+
+        function createNewGame() {
+            const id = 'save_' + Date.now();
+            const name = `Joc ${getMeta().saves.length + 1}`;
+            
+            // Init Empty State
+            state = { points: 10, blocks: [] };
+            currentSaveId = id;
+            
+            // Update Meta
+            const meta = getMeta();
+            meta.saves.push({ id: id, name: name, date: new Date().toLocaleString() });
+            meta.lastPlayed = id;
+            localStorage.setItem(META_KEY, JSON.stringify(meta));
+            
+            // Save Initial Data
+            saveState();
+            
+            // Refresh UI
+            updateGameUI();
+            if(scene) rebuildWorld(); // Clear board
+            closeSaveManager();
+            showToast("Joc nou creat!");
+        }
+
+        function loadGame(id) {
+            const raw = localStorage.getItem(SAVE_PREFIX + id);
+            if (raw) {
+                state = JSON.parse(raw);
+                currentSaveId = id;
+                
+                // Update last played
+                const meta = getMeta();
+                meta.lastPlayed = id;
+                localStorage.setItem(META_KEY, JSON.stringify(meta));
+
+                updateGameUI();
+                if(scene) rebuildWorld();
+                closeSaveManager();
+                showToast("Joc încărcat!");
+            }
+        }
+
+        function deleteGame(id) {
+            if(confirm("Sigur vrei să ștergi acest joc? Nu se poate anula.")) {
+                // Remove data
+                localStorage.removeItem(SAVE_PREFIX + id);
+                
+                // Update Meta
+                const meta = getMeta();
+                meta.saves = meta.saves.filter(s => s.id !== id);
+                if (meta.lastPlayed === id) meta.lastPlayed = null;
+                localStorage.setItem(META_KEY, JSON.stringify(meta));
+
+                // If deleted current game, switch or create new
+                if (currentSaveId === id) {
+                    if (meta.saves.length > 0) loadGame(meta.saves[0].id);
+                    else createNewGame();
+                } else {
+                    renderSaveList(); // Refresh list only
+                }
+            }
+        }
+
+        function saveState() {
+            if (!currentSaveId) return;
+            localStorage.setItem(SAVE_PREFIX + currentSaveId, JSON.stringify(state));
+            
+            // Update timestamp in meta
+            const meta = getMeta();
+            const saveInfo = meta.saves.find(s => s.id === currentSaveId);
+            if(saveInfo) {
+                saveInfo.date = new Date().toLocaleString();
+                localStorage.setItem(META_KEY, JSON.stringify(meta));
+            }
+            
+            updateUI();
+        }
+
+        function updateGameUI() {
+            const meta = getMeta();
+            const saveInfo = meta.saves.find(s => s.id === currentSaveId);
+            if (saveInfo) {
+                document.getElementById('current-game-name').innerText = saveInfo.name;
+            }
+            updateUI();
+        }
+
+        // UI Manager Functions
+        function openSaveManager() {
+            document.getElementById('save-manager-modal').classList.remove('hidden');
+            renderSaveList();
+        }
+
+        function closeSaveManager() {
+            document.getElementById('save-manager-modal').classList.add('hidden');
+        }
+
+        function renderSaveList() {
+            const list = document.getElementById('save-list');
+            list.innerHTML = '';
+            const meta = getMeta();
+
+            meta.saves.forEach(save => {
+                const isActive = save.id === currentSaveId;
+                const item = document.createElement('div');
+                item.className = `flex items-center justify-between p-3 rounded-lg border-2 ${isActive ? 'bg-blue-50 border-blue-500' : 'bg-slate-50 border-slate-200'}`;
+                item.innerHTML = `
+                    <div class="flex flex-col">
+                        <span class="font-bold text-slate-700">${save.name} ${isActive ? '(Activ)' : ''}</span>
+                        <span class="text-xs text-slate-500">${save.date}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        ${!isActive ? `<button onclick="loadGame('${save.id}')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">Încarcă</button>` : ''}
+                        <button onclick="deleteGame('${save.id}')" class="text-red-500 hover:bg-red-50 px-2 py-1 rounded transition-colors"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
 
         /**
          * ------------------------------------------------------------------
@@ -739,20 +941,7 @@
         };
 
         function loadState() {
-            const saved = localStorage.getItem(GAME_STATE_KEY);
-            if (saved) {
-                try {
-                    const parsed = JSON.parse(saved);
-                    state.points = parsed.points ?? 10;
-                    state.blocks = parsed.blocks ?? [];
-                } catch(e) { console.error("Save file corrupted, resetting."); }
-            }
-            updateUI();
-        }
-
-        function saveState() {
-            localStorage.setItem(GAME_STATE_KEY, JSON.stringify(state));
-            updateUI();
+            // Replaced by initSaveSystem() in window.onload
         }
 
         function updateUI() {
@@ -879,6 +1068,12 @@
         }
 
         function rebuildWorld() {
+            // Clean existing
+            objects.forEach(obj => {
+                if(obj !== plane) scene.remove(obj);
+            });
+            objects = [plane];
+
             state.blocks.forEach(bData => {
                 const geo = new THREE.BoxGeometry(50, 50, 50);
                 const mat = materials[bData.type];
@@ -912,13 +1107,13 @@
         }
 
         function onPointerDown(event) {
-            if(event.target.closest('.interactive-ui') || event.target.closest('#quiz-modal')) return;
+            if(event.target.closest('.interactive-ui') || event.target.closest('#quiz-modal') || event.target.closest('#save-manager-modal')) return;
             startMousePos = { x: event.clientX, y: event.clientY };
             isDragging = false;
         }
 
         function onPointerUp(event) {
-            if(event.target.closest('.interactive-ui') || event.target.closest('#quiz-modal')) return;
+            if(event.target.closest('.interactive-ui') || event.target.closest('#quiz-modal') || event.target.closest('#save-manager-modal')) return;
             const dx = event.clientX - startMousePos.x;
             const dy = event.clientY - startMousePos.y;
             const dist = Math.sqrt(dx*dx + dy*dy);
@@ -971,7 +1166,7 @@
         window.onload = function() {
             try {
                 initQuestions();
-                loadState();
+                initSaveSystem(); // Replaces loadState()
                 init3D();
                 animate();
                 console.log("Game initialized successfully!");
