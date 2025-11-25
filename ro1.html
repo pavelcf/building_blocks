@@ -91,6 +91,8 @@
             <b>SHIFT + Click:</b> Acțiune (Build/Delete)<br>
             <b>Click + Drag:</b> Rotește Camera<br>
             <b>Scroll:</b> Zoom<br>
+            <b>W, A, S, D:</b> Mișcă Camera<br>
+            <b>Q, E:</b> Sus / Jos<br>
             <span class="text-yellow-400">Pont: Folosește butoanele de sus<br>pentru a schimba modul!</span>
         </div>
 
@@ -297,6 +299,7 @@
         var materials = {};
         var isDragging = false;
         var startMousePos = {x: 0, y: 0};
+        var keysPressed = {};
         
         // Game State
         const META_KEY = 'md_builder_meta';
@@ -1158,9 +1161,72 @@
             }
         }
 
-        function onDocumentKeyDown(event) { if(event.keyCode === 16) isShiftDown = true; }
-        function onDocumentKeyUp(event) { if(event.keyCode === 16) isShiftDown = false; }
-        function animate() { requestAnimationFrame(animate); if (renderer && scene && camera) renderer.render(scene, camera); }
+        function onDocumentKeyDown(event) { 
+            if(event.keyCode === 16) isShiftDown = true; 
+            keysPressed[event.key.toLowerCase()] = true;
+        }
+        function onDocumentKeyUp(event) { 
+            if(event.keyCode === 16) isShiftDown = false; 
+            keysPressed[event.key.toLowerCase()] = false;
+        }
+        function animate() { 
+            requestAnimationFrame(animate); 
+            
+            // Keyboard Movement Logic
+            if (controls && camera) {
+                const speed = 15; // Movement speed
+                const direction = new THREE.Vector3();
+                camera.getWorldDirection(direction);
+                direction.y = 0;
+                direction.normalize();
+
+                const right = new THREE.Vector3();
+                right.crossVectors(direction, new THREE.Vector3(0, 1, 0)).normalize();
+
+                let moved = false;
+
+                // W or ArrowUp
+                if (keysPressed['w'] || keysPressed['arrowup']) {
+                    camera.position.addScaledVector(direction, speed);
+                    controls.target.addScaledVector(direction, speed);
+                    moved = true;
+                }
+                // S or ArrowDown
+                if (keysPressed['s'] || keysPressed['arrowdown']) {
+                    camera.position.addScaledVector(direction, -speed);
+                    controls.target.addScaledVector(direction, -speed);
+                    moved = true;
+                }
+                // A or ArrowLeft
+                if (keysPressed['a'] || keysPressed['arrowleft']) {
+                    camera.position.addScaledVector(right, -speed);
+                    controls.target.addScaledVector(right, -speed);
+                    moved = true;
+                }
+                // D or ArrowRight
+                if (keysPressed['d'] || keysPressed['arrowright']) {
+                    camera.position.addScaledVector(right, speed);
+                    controls.target.addScaledVector(right, speed);
+                    moved = true;
+                }
+                // E (Up)
+                if (keysPressed['e']) {
+                    camera.position.y += speed;
+                    controls.target.y += speed;
+                    moved = true;
+                }
+                // Q (Down)
+                if (keysPressed['q']) {
+                    camera.position.y -= speed;
+                    controls.target.y -= speed;
+                    moved = true;
+                }
+
+                if (moved) controls.update();
+            }
+
+            if (renderer && scene && camera) renderer.render(scene, camera); 
+        }
 
         // Start Script
         window.onload = function() {
