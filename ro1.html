@@ -70,7 +70,7 @@
 
             <button onclick="openQuizModal()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg border-b-4 border-blue-800 active:border-b-0 active:translate-y-1 transition-all flex items-center gap-2 animate-pulse">
                 <i class="fas fa-brain"></i>
-                Câștigă Puncte (+10)
+                Câștigă Puncte
             </button>
         </div>
 
@@ -115,7 +115,7 @@
             <div class="bg-indigo-600 p-6 flex justify-between items-center text-white">
                 <div>
                     <h2 class="text-2xl font-bold"><i class="fas fa-graduation-cap mr-2"></i>Centrul de Cunoștințe</h2>
-                    <p class="text-indigo-200 text-sm">Răspunde corect pentru 10 puncte!</p>
+                    <p class="text-indigo-200 text-sm">Demonstrează ce știi și câștigă resurse!</p>
                 </div>
                 <button onclick="closeQuizModal()" class="text-indigo-200 hover:text-white transition-colors">
                     <i class="fas fa-times text-2xl"></i>
@@ -124,7 +124,6 @@
 
             <!-- Category Selection -->
             <div id="category-selection" class="p-8 flex flex-col">
-                
                 <!-- AI Toggle -->
                 <div class="flex justify-center mb-6">
                     <label class="flex items-center gap-3 cursor-pointer bg-indigo-50 px-4 py-2 rounded-full border border-indigo-100 hover:bg-indigo-100 transition-colors">
@@ -141,7 +140,7 @@
                             <i class="fas fa-calculator"></i>
                         </div>
                         <h3 class="font-bold text-gray-700">Matematică</h3>
-                        <p class="text-xs text-gray-500 text-center mt-2">Ecuații, Geometrie, Puteri</p>
+                        <p class="text-xs text-gray-500 text-center mt-2">Ecuații, Geometrie, Numere</p>
                     </button>
 
                     <button onclick="selectCategory('physics')" class="flex flex-col items-center p-6 bg-purple-50 hover:bg-purple-100 rounded-xl border-2 border-purple-200 transition-all hover:-translate-y-1">
@@ -157,14 +156,39 @@
                             <i class="fas fa-puzzle-piece"></i>
                         </div>
                         <h3 class="font-bold text-gray-700">Logică</h3>
-                        <p class="text-xs text-gray-500 text-center mt-2">Deducție, Șiruri, Perspicacitate</p>
+                        <p class="text-xs text-gray-500 text-center mt-2">Deducție, Șiruri, Probleme</p>
                     </button>
                 </div>
             </div>
 
+            <!-- Difficulty Selection (New) -->
+            <div id="difficulty-selection" class="hidden p-8 flex-col items-center">
+                <h3 class="text-xl font-bold text-gray-700 mb-6">Alege Nivelul de Dificultate</h3>
+                <div class="grid grid-cols-1 gap-4 w-full max-w-md">
+                    <button onclick="selectDifficulty('easy')" class="p-4 bg-green-100 hover:bg-green-200 text-green-800 rounded-xl border-2 border-green-300 font-bold flex justify-between items-center transition-all hover:scale-105">
+                        <span class="flex items-center gap-2"><i class="fas fa-seedling"></i> Ușor</span>
+                        <span class="bg-white px-3 py-1 rounded-full text-sm font-black shadow-sm text-green-600">+1 Punct</span>
+                    </button>
+                    <button onclick="selectDifficulty('medium')" class="p-4 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 rounded-xl border-2 border-yellow-300 font-bold flex justify-between items-center transition-all hover:scale-105">
+                        <span class="flex items-center gap-2"><i class="fas fa-layer-group"></i> Mediu</span>
+                        <span class="bg-white px-3 py-1 rounded-full text-sm font-black shadow-sm text-yellow-600">+3 Puncte</span>
+                    </button>
+                    <button onclick="selectDifficulty('hard')" class="p-4 bg-red-100 hover:bg-red-200 text-red-800 rounded-xl border-2 border-red-300 font-bold flex justify-between items-center transition-all hover:scale-105">
+                        <span class="flex items-center gap-2"><i class="fas fa-fire"></i> Complex</span>
+                        <span class="bg-white px-3 py-1 rounded-full text-sm font-black shadow-sm text-red-600">+10 Puncte</span>
+                    </button>
+                </div>
+                <button onclick="resetToCategories()" class="mt-6 text-indigo-600 hover:text-indigo-800 font-medium underline">
+                    <i class="fas fa-arrow-left mr-1"></i> Înapoi la Categorii
+                </button>
+            </div>
+
             <!-- Question View -->
             <div id="question-view" class="hidden p-8 flex-col">
-                <div class="mb-2 text-sm font-bold text-indigo-600 uppercase tracking-wide" id="q-category">CATEGORIE</div>
+                <div class="flex justify-between items-center mb-2">
+                    <div class="text-sm font-bold text-indigo-600 uppercase tracking-wide" id="q-category">CATEGORIE</div>
+                    <div class="text-xs font-bold px-2 py-1 rounded text-white uppercase tracking-wide" id="q-difficulty-badge">DIFFICULTY</div>
+                </div>
                 <h3 class="text-xl font-medium text-gray-800 mb-6" id="q-text">Întrebarea va apărea aici...</h3>
                 
                 <div class="grid grid-cols-1 gap-3" id="answers-container">
@@ -185,12 +209,15 @@
                     </div>
                 </div>
 
-                <div class="flex gap-3">
+                <div class="flex gap-3 justify-center w-full flex-wrap">
                     <button onclick="askAIExplanation()" id="btn-explain-ai" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-6 py-2 rounded-lg font-bold flex items-center gap-2 transition-colors">
                         <i class="fas fa-magic"></i> Explică-mi ✨
                     </button>
-                    <button onclick="resetToCategories()" class="bg-gray-800 text-white px-6 py-2 rounded-lg hover:bg-gray-700 font-bold">
-                        Continuă
+                    <button onclick="nextQuestion()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-bold shadow-md transition-all hover:scale-105">
+                        <i class="fas fa-arrow-right mr-2"></i> Continuă
+                    </button>
+                    <button onclick="closeQuizModal()" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 font-bold shadow-md transition-all hover:scale-105">
+                        <i class="fas fa-times mr-2"></i> Închide
                     </button>
                 </div>
             </div>
@@ -216,7 +243,15 @@
         var apiKey = ""; // Set by environment
         var API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
         var currentActiveQuestion = null;
-        var database = { math: [], physics: [], logic: [] };
+        var currentCategory = null;
+        var currentDifficulty = null;
+        
+        // New Hierarchical Database Structure
+        var database = { 
+            math: { easy: [], medium: [], hard: [] }, 
+            physics: { easy: [], medium: [], hard: [] }, 
+            logic: { easy: [], medium: [], hard: [] } 
+        };
         
         // 3D Globals
         var camera, scene, renderer, controls;
@@ -229,7 +264,7 @@
         var startMousePos = {x: 0, y: 0};
         
         // Game State
-        var GAME_STATE_KEY = 'md_builder_save_v1';
+        var GAME_STATE_KEY = 'md_builder_save_v2';
         var state = { points: 10, blocks: [] };
         var activeTool = 'build';
         var currentBlockType = 'grass';
@@ -261,14 +296,18 @@
             }
         }
 
-        async function generateAIQuestion(category) {
+        async function generateAIQuestion(category, difficulty) {
             const categoryMap = { math: 'Matematică', physics: 'Fizică', logic: 'Logică' };
+            const difficultyMap = { easy: 'Ușor (cunoștințe de bază)', medium: 'Mediu (aplicare formule simple)', hard: 'Complex (probleme de logică sau multi-pas)' };
+            
             const catName = categoryMap[category];
+            const diffName = difficultyMap[difficulty];
+
             const prompt = `Ești un profesor expert pentru clasa a 7-a în Republica Moldova. 
-            Generează o întrebare grilă unică, interesantă și educativă din categoria "${catName}".
-            Nivel de dificultate: mediu (pentru copii de 13 ani).
+            Generează o întrebare grilă unică din categoria "${catName}" cu nivelul de dificultate "${diffName}".
             Returnează DOAR un JSON valid cu acest format strict:
             { "q": "textul întrebării aici", "a": ["varianta 1", "varianta 2", "varianta 3", "varianta 4"], "c": indexul_corect_0_la_3_integer }`;
+            
             const jsonText = await callGemini(prompt, true);
             return JSON.parse(jsonText);
         }
@@ -305,12 +344,17 @@
         }
 
         function resetToCategories() {
+            // Views
             document.getElementById('category-selection').classList.remove('hidden');
             document.getElementById('category-selection').classList.add('flex');
+            document.getElementById('difficulty-selection').classList.add('hidden');
+            document.getElementById('difficulty-selection').classList.remove('flex');
             document.getElementById('question-view').classList.add('hidden');
             document.getElementById('question-view').classList.remove('flex');
             document.getElementById('feedback-view').classList.add('hidden');
             document.getElementById('feedback-view').classList.remove('flex');
+            
+            // Components
             document.getElementById('ai-explanation-container').classList.add('hidden');
             const expBtn = document.getElementById('btn-explain-ai');
             expBtn.classList.remove('hidden');
@@ -318,39 +362,88 @@
             expBtn.disabled = false;
         }
 
-        async function selectCategory(category) {
+        function selectCategory(category) {
+            currentCategory = category;
+            document.getElementById('category-selection').classList.add('hidden');
+            document.getElementById('category-selection').classList.remove('flex');
+            
+            document.getElementById('difficulty-selection').classList.remove('hidden');
+            document.getElementById('difficulty-selection').classList.add('flex');
+        }
+
+        async function selectDifficulty(difficulty) {
+            currentDifficulty = difficulty;
+            document.getElementById('difficulty-selection').classList.add('hidden');
+            document.getElementById('difficulty-selection').classList.remove('flex');
+            
+            await loadNextQuestion();
+        }
+
+        async function loadNextQuestion() {
+            // Reset Feedback/Explanation UI first
+            document.getElementById('feedback-view').classList.add('hidden');
+            document.getElementById('feedback-view').classList.remove('flex');
+            document.getElementById('ai-explanation-container').classList.add('hidden');
+            const expBtn = document.getElementById('btn-explain-ai');
+            expBtn.classList.remove('hidden');
+            expBtn.innerHTML = '<i class="fas fa-magic"></i> Explică-mi ✨';
+            expBtn.disabled = false;
+
             const useAI = document.getElementById('ai-toggle').checked;
+
             if (useAI) {
                 document.getElementById('loading-overlay').classList.remove('hidden');
                 try {
-                    const qData = await generateAIQuestion(category);
-                    displayQuestion(category, qData);
+                    const qData = await generateAIQuestion(currentCategory, currentDifficulty);
+                    displayQuestion(qData);
                 } catch (error) {
                     showToast("Eroare AI. Folosim baza de date locală.", true);
-                    const pool = database[category];
-                    const qData = pool[Math.floor(Math.random() * pool.length)];
-                    displayQuestion(category, qData);
+                    fetchFromDatabase(currentCategory, currentDifficulty);
                 } finally {
                     document.getElementById('loading-overlay').classList.add('hidden');
                 }
             } else {
-                const pool = database[category];
-                if (!pool || pool.length === 0) { showToast("Eroare: Baza de date goală!", true); return; }
-                const qData = pool[Math.floor(Math.random() * pool.length)];
-                displayQuestion(category, qData);
+                fetchFromDatabase(currentCategory, currentDifficulty);
             }
         }
 
-        function displayQuestion(category, qData) {
+        // Alias for the "Continuă" button
+        function nextQuestion() {
+            loadNextQuestion();
+        }
+
+        function fetchFromDatabase(cat, diff) {
+            const pool = database[cat][diff];
+            if (!pool || pool.length === 0) { 
+                showToast("Nu mai sunt întrebări în această categorie!", true); 
+                resetToCategories();
+                return; 
+            }
+            const qData = pool[Math.floor(Math.random() * pool.length)];
+            displayQuestion(qData);
+        }
+
+        function displayQuestion(qData) {
             currentActiveQuestion = qData;
-            document.getElementById('category-selection').classList.add('hidden');
-            document.getElementById('category-selection').classList.remove('flex');
             const qView = document.getElementById('question-view');
             qView.classList.remove('hidden');
             qView.classList.add('flex');
+            
             const catNames = { math: 'Matematică', physics: 'Fizică', logic: 'Logică' };
-            document.getElementById('q-category').innerText = catNames[category];
+            const diffStyles = { 
+                easy: 'bg-green-500', 
+                medium: 'bg-yellow-500', 
+                hard: 'bg-red-500' 
+            };
+            const diffNames = { easy: 'Ușor', medium: 'Mediu', hard: 'Complex' };
+
+            document.getElementById('q-category').innerText = catNames[currentCategory];
+            const badge = document.getElementById('q-difficulty-badge');
+            badge.className = `text-xs font-bold px-2 py-1 rounded text-white uppercase tracking-wide ${diffStyles[currentDifficulty]}`;
+            badge.innerText = diffNames[currentDifficulty];
+
             document.getElementById('q-text').innerText = qData.q;
+            
             const ansContainer = document.getElementById('answers-container');
             ansContainer.innerHTML = '';
             qData.a.forEach((ansText, index) => {
@@ -366,20 +459,27 @@
             const qView = document.getElementById('question-view');
             qView.classList.add('hidden');
             qView.classList.remove('flex');
+            
             const fView = document.getElementById('feedback-view');
             fView.classList.remove('hidden');
             fView.classList.add('flex');
+            
             const icon = document.getElementById('feedback-icon');
             const title = document.getElementById('feedback-title');
             const msg = document.getElementById('feedback-message');
+            
             if (selectedIndex === correctIndex) {
-                state.points += 10;
+                const pointsMap = { easy: 1, medium: 3, hard: 10 };
+                const pts = pointsMap[currentDifficulty];
+                
+                state.points += pts;
                 saveState();
+                
                 icon.innerHTML = '<i class="fas fa-check-circle text-green-500"></i>';
                 title.innerText = "Corect!";
                 title.className = "text-2xl font-bold mb-2 text-green-600";
-                msg.innerText = "Felicitări! Ai primit 10 puncte de construcție.";
-                showToast("+10 Puncte!", false);
+                msg.innerText = `Felicitări! Ai primit ${pts} puncte.`;
+                showToast(`+${pts} Puncte!`, false);
             } else {
                 icon.innerHTML = '<i class="fas fa-times-circle text-red-500"></i>';
                 title.innerText = "Greșit!";
@@ -390,89 +490,167 @@
 
         /**
          * ------------------------------------------------------------------
-         * DATA GENERATORS
+         * DATA GENERATION (TIERED)
          * ------------------------------------------------------------------
          */
+        
+        // Static Data - Significantly Expanded for Grade 7 MD Curriculum
+        const staticData = {
+            math: {
+                easy: [
+                    { q: "Care este opusul numărului 5?", a: ["-5", "5", "0", "1/5"], c: 0 },
+                    { q: "Calculați: 3 × 7", a: ["21", "10", "24", "18"], c: 0 },
+                    { q: "Suma unghiurilor într-un triunghi este:", a: ["180°", "90°", "360°", "100°"], c: 0 },
+                    { q: "Cât face 10 + (-3)?", a: ["7", "13", "-7", "-13"], c: 0 },
+                    { q: "Care număr este mai mare: -5 sau -2?", a: ["-2", "-5", "Sunt egale", "Nu se poate compara"], c: 0 },
+                    { q: "Un pătrat are latura de 4 cm. Perimetrul este:", a: ["16 cm", "12 cm", "8 cm", "20 cm"], c: 0 },
+                    { q: "Numărul 17 este:", a: ["Prim", "Compus", "Par", "Negativ"], c: 0 }
+                ],
+                medium: [
+                    { q: "Rezolvați: 2x = 14", a: ["x = 7", "x = 12", "x = 28", "x = 6"], c: 0 },
+                    { q: "Calculați: 5² + 3", a: ["28", "13", "22", "30"], c: 0 },
+                    { q: "Aria unui dreptunghi cu L=10cm și l=5cm este:", a: ["50 cm²", "30 cm²", "15 cm²", "100 cm²"], c: 0 },
+                    { q: "Care este 20% din 50?", a: ["10", "25", "15", "5"], c: 0 },
+                    { q: "Dacă a = -3 și b = 4, cât este a × b?", a: ["-12", "12", "7", "-1"], c: 0 },
+                    { q: "Simplificați fracția 12/16", a: ["3/4", "2/3", "4/5", "1/2"], c: 0 }
+                ],
+                hard: [
+                    { q: "Rezolvați: 3x + 5 = 20", a: ["x = 5", "x = 4", "x = 6", "x = 3"], c: 0 },
+                    { q: "Calculați: √225", a: ["15", "25", "12", "13"], c: 0 },
+                    { q: "Un cerc are raza de 3cm. Aria este (π≈3.14)?", a: ["~28.26 cm²", "~18.84 cm²", "~9 cm²", "~30 cm²"], c: 0 },
+                    { q: "Volumul unui cub cu latura de 3cm este:", a: ["27 cm³", "9 cm³", "54 cm³", "18 cm³"], c: 0 },
+                    { q: "Media aritmetică a numerelor 12, 18 și 30 este:", a: ["20", "22", "15", "25"], c: 0 }
+                ]
+            },
+            physics: {
+                easy: [
+                    { q: "Unitatea de măsură pentru Timp este:", a: ["Secunda", "Metrul", "Kilogramul", "Newton"], c: 0 },
+                    { q: "Simbolul pentru Viteză este:", a: ["v", "t", "d", "F"], c: 0 },
+                    { q: "Instrumentul pentru măsurarea masei este:", a: ["Cântarul", "Termometrul", "Ruleta", "Ceasul"], c: 0 },
+                    { q: "Apa îngheață la temperatura de:", a: ["0°C", "100°C", "10°C", "-10°C"], c: 0 },
+                    { q: "Masa se notează cu litera:", a: ["m", "V", "t", "G"], c: 0 }
+                ],
+                medium: [
+                    { q: "Formula vitezei este:", a: ["v = d / t", "v = d × t", "v = t / d", "v = m × a"], c: 0 },
+                    { q: "Dacă d = 100m și t = 10s, viteza este:", a: ["10 m/s", "1000 m/s", "90 m/s", "0.1 m/s"], c: 0 },
+                    { q: "Densitatea (ρ) este raportul dintre:", a: ["Masă și Volum", "Greutate și Masă", "Volum și Timp", "Forță și Suprafață"], c: 0 },
+                    { q: "1 kg de pene vs 1 kg de plumb. Care are masa mai mare?", a: ["Sunt egale", "Plumbul", "Penele", "Depinde"], c: 0 },
+                    { q: "Unitatea de măsură pentru Forță este:", a: ["Newton", "Pascal", "Joule", "Watt"], c: 0 }
+                ],
+                hard: [
+                    { q: "Transformați 72 km/h în m/s:", a: ["20 m/s", "10 m/s", "25 m/s", "15 m/s"], c: 0 },
+                    { q: "Un corp are m=2kg. Greutatea sa (g=10N/kg) este:", a: ["20 N", "2 N", "5 N", "200 N"], c: 0 },
+                    { q: "Presiunea este raportul dintre:", a: ["Forță și Suprafață", "Masă și Volum", "Viteză și Timp", "Densitate și Masă"], c: 0 },
+                    { q: "Densitatea apei este aproximativ:", a: ["1000 kg/m³", "100 kg/m³", "1 kg/m³", "10 kg/m³"], c: 0 },
+                    { q: "Fenomenul de menținere a stării de repaus sau MRU se numește:", a: ["Inerție", "Frecare", "Gravitație", "Elasticitate"], c: 0 }
+                ]
+            },
+            logic: {
+                easy: [
+                    { q: "Ce urmează: Luni, Marți, ...?", a: ["Miercuri", "Joi", "Duminică", "Vineri"], c: 0 },
+                    { q: "Dacă ai 3 mere și mănânci unul, câte rămân?", a: ["Două", "Unul", "Trei", "Niciunul"], c: 0 },
+                    { q: "Câte picioare are o pisică normală?", a: ["4", "2", "6", "8"], c: 0 },
+                    { q: "Ce este mai mare: un elefant sau un șoarece?", a: ["Elefantul", "Șoarecele", "Sunt egali", "Depinde"], c: 0 }
+                ],
+                medium: [
+                    { q: "Continuă șirul: 2, 4, 6, 8, ...", a: ["10", "9", "12", "11"], c: 0 },
+                    { q: "Mama Mariei are 3 fete: Ana, Irina și ...?", a: ["Maria", "Elena", "Ioana", "Carmen"], c: 0 },
+                    { q: "Ce obiect are dinți dar nu mușcă?", a: ["Pieptenele", "Câinele", "Rechinul", "Vampirul"], c: 0 },
+                    { q: "Ieri a fost Joi. Ce zi va fi poimâine?", a: ["Duminică", "Sâmbătă", "Luni", "Vineri"], c: 0 }
+                ],
+                hard: [
+                    { q: "Continuă șirul: 1, 1, 2, 3, 5, 8, ...", a: ["13", "10", "11", "15"], c: 0 },
+                    { q: "Un medic îți dă 3 pastile, una la 30 min. Cât durează?", a: ["1 oră", "1.5 ore", "2 ore", "30 min"], c: 0 },
+                    { q: "Într-o cursă, depășești locul 2. Pe ce loc ești?", a: ["Locul 2", "Locul 1", "Locul 3", "Ultimul"], c: 0 },
+                    { q: "Câte laturi are un cerc?", a: ["Niciuna (sau infinit)", "Una", "Două", "Patru"], c: 0 },
+                    { q: "Ce trece prin orașe și câmpii dar nu se mișcă?", a: ["Drumul", "Râul", "Vântul", "Norul"], c: 0 }
+                ]
+            }
+        };
+
+        // Procedural Generators
         function finalizeQs(list) {
             return list.map(item => {
-                const correctVal = item.a[0]; 
+                const correctVal = item.a[0];
                 const shuffledA = shuffle([...item.a]);
                 return { q: item.q, a: shuffledA, c: shuffledA.indexOf(correctVal) };
             });
         }
 
-        function generateMathQuestions(count) {
-            const qs = [];
-            for(let i=0; i<count/4; i++) {
-                const x = rInt(2, 12), a = rInt(2, 9), b = rInt(1, 20);
-                const c = a * x + b;
-                qs.push({ q: `Rezolvă ecuația: ${a}x + ${b} = ${c}`, a: [`${x}`, `${x+rInt(1,3)}`, `${x-rInt(1,3)}`, `${x+5}`], c: 0 });
+        function generateMathQs(count) {
+            let easy = [], medium = [], hard = [];
+            
+            // Easy: Arithmetic
+            for(let i=0; i<count; i++) {
+                let a = rInt(1, 20), b = rInt(1, 20);
+                easy.push({ q: `Calculați: ${a} + ${b}`, a: [`${a+b}`, `${a+b+1}`, `${a+b-1}`, `${a+b+2}`], c: 0 });
             }
-            for(let i=0; i<count/4; i++) {
-                const a = rInt(-20, 20), b = rInt(-20, 20), res = a - b;
-                qs.push({ q: `Calculează: ${a} - (${b})`, a: [`${res}`, `${res+2}`, `${res-2}`, `${res*-1}`], c: 0 });
+            // Medium: Linear eq ax = b
+            for(let i=0; i<count; i++) {
+                let x = rInt(2, 12), a = rInt(2, 9), b = a * x;
+                medium.push({ q: `Află x din ecuația: ${a}x = ${b}`, a: [`${x}`, `${x+1}`, `${x-1}`, `${x*2}`], c: 0 });
             }
-            for(let i=0; i<count/4; i++) {
-                const w = rInt(3, 15), h = rInt(3, 15), area = w * h;
-                qs.push({ q: `Care este aria unui dreptunghi cu laturile de ${w} cm și ${h} cm?`, a: [`${area} cm²`, `${2*(w+h)} cm²`, `${area+10} cm²`, `${area/2} cm²`], c: 0 });
+            // Hard: ax + b = c
+            for(let i=0; i<count; i++) {
+                let x = rInt(2, 12), a = rInt(2, 9), b = rInt(1, 20), c = a * x + b;
+                hard.push({ q: `Rezolvă: ${a}x + ${b} = ${c}`, a: [`${x}`, `${x+2}`, `${x-2}`, `${x+5}`], c: 0 });
             }
-            for(let i=0; i<count/4; i++) {
-                const base = rInt(2, 10), res = base * base;
-                qs.push({ q: `Cât este ${base} la puterea a 2-a (${base}²)?`, a: [`${res}`, `${base*2}`, `${res+base}`, `${base}`], c: 0 });
-            }
-            return finalizeQs(qs);
+            return { easy: finalizeQs(easy), medium: finalizeQs(medium), hard: finalizeQs(hard) };
         }
 
-        function generatePhysicsQuestions(count) {
-            const qs = [];
-            for(let i=0; i<count/3; i++) {
-                const t = rInt(2, 10), v = rInt(10, 100), d = v * t;
-                qs.push({ q: `Un automobil parcurge ${d} km în ${t} ore. Care este viteza medie?`, a: [`${v} km/h`, `${v+10} km/h`, `${d} km/h`, `${t} km/h`], c: 0 });
+        function generatePhysicsQs(count) {
+            let easy = [], medium = [], hard = [];
+            
+            // Easy: Definitions are mostly static, maybe generic units
+            for(let i=0; i<count; i++) {
+                easy.push({ q: "Simbolul 'm' în fizică reprezintă de obicei:", a: ["Masa sau Metrul", "Minutul", "Materia", "Mecanica"], c: 0 });
             }
-            for(let i=0; i<count/3; i++) {
-                const m = rInt(1, 50), G = m * 10;
-                qs.push({ q: `Un corp are masa de ${m} kg. Care este greutatea lui (g=10 N/kg)?`, a: [`${G} N`, `${m} N`, `${G/2} N`, `${m+10} N`], c: 0 });
+            // Medium: v = d/t
+            for(let i=0; i<count; i++) {
+                let v = rInt(5, 20), t = rInt(2, 10), d = v * t;
+                medium.push({ q: `Un mobil parcurge ${d}m în ${t}s. Viteza este:`, a: [`${v} m/s`, `${v*2} m/s`, `${d} m/s`, `${t} m/s`], c: 0 });
             }
-            for(let i=0; i<count/3; i++) {
-                const V = rInt(2, 5), rho = rInt(2, 5) * 100, m = rho * V;
-                qs.push({ q: `Un corp cu volumul de ${V} m³ are masa de ${m} kg. Care este densitatea?`, a: [`${rho} kg/m³`, `${m} kg/m³`, `${rho/2} kg/m³`, `${V*10} kg/m³`], c: 0 });
+            // Hard: G = mg
+            for(let i=0; i<count; i++) {
+                let m = rInt(200, 800), g = 10; // m in grams? No, let's use kg for hard conversion maybe? Keep simple for hard logic
+                let mass = m / 1000; // kg
+                let G = mass * g;
+                hard.push({ q: `Un corp are ${m} grame. Greutatea (g=10N/kg) este:`, a: [`${G} N`, `${m} N`, `${G*10} N`, `${mass} N`], c: 0 });
             }
-            return finalizeQs(qs);
+            return { easy: finalizeQs(easy), medium: finalizeQs(medium), hard: finalizeQs(hard) };
         }
-
-        function generateLogicQuestions(count) {
-            const qs = [];
-            for(let i=0; i<count/3; i++) {
-                const start = rInt(1, 20), step = rInt(2, 9), ans = start+step*4;
-                const s = [start, start+step, start+step*2, start+step*3];
-                qs.push({ q: `Continuă șirul: ${s.join(', ')}, ...`, a: [`${ans}`, `${ans+1}`, `${ans-1}`, `${ans+step}`], c: 0 });
-            }
-            for(let i=0; i<count/3; i++) {
-                const start = rInt(1, 5), mult = rInt(2, 3), ans = start*mult*mult*mult;
-                const s = [start, start*mult, start*mult*mult];
-                qs.push({ q: `Ce număr urmează: ${s.join(', ')}, ...?`, a: [`${ans}`, `${ans+mult}`, `${s[2]*2}`, `${ans-1}`], c: 0 });
-            }
-            const days = ["Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă", "Duminică"];
-            for(let i=0; i<count/3; i++) {
-                const startIdx = rInt(0, 6), offset = rInt(2, 5), endIdx = (startIdx + offset) % 7;
-                qs.push({ q: `Azi e ${days[startIdx]}. Ce zi va fi peste ${offset} zile?`, a: [`${days[endIdx]}`, `${days[(endIdx+1)%7]}`, `${days[(endIdx+2)%7]}`, `${days[(endIdx-1+7)%7]}`], c: 0 });
-            }
-            return finalizeQs(qs);
-        }
-
-        var staticDatabase = {
-            math: [ { q: "Suma unghiurilor unui triunghi este întotdeauna:", a: ["90 grade", "180 grade", "360 grade", "100 grade"], c: 1 }, { q: "Care este rădăcina pătrată a numărului 144?", a: ["14", "11", "12", "16"], c: 2 }, { q: "Cum se scrie 10³ ca număr?", a: ["100", "30", "1000", "300"], c: 2 }, { q: "Un triunghi cu două laturi egale se numește:", a: ["Echilateral", "Isoscel", "Dreptunghic", "Oarecare"], c: 1 }, { q: "Care este opusul numărului 7?", a: ["1/7", "-7", "0", "7"], c: 1 }, { q: "Cel mai mic număr prim este:", a: ["1", "2", "3", "0"], c: 1 }, { q: "Dacă a = -2 și b = 3, cât este a × b?", a: ["-6", "6", "5", "-5"], c: 0 }, { q: "Modulul numărului -8 este:", a: ["-8", "8", "0", "1"], c: 1 }, { q: "Linia mijlocie într-un triunghi este egală cu:", a: ["Jumătate din latura opusă", "Latura opusă", "Dublul laturii opuse", "O treime din latură"], c: 0 }, { q: "Care este 20% din 50?", a: ["10", "20", "5", "15"], c: 0 } ],
-            physics: [ { q: "Unitatea de măsură pentru Forță în Sistemul Internațional este:", a: ["Kilogram", "Pascal", "Newton", "Joule"], c: 2 }, { q: "Densitatea se calculează folosind formula:", a: ["ρ = m • V", "ρ = m / V", "ρ = V / m", "ρ = m + V"], c: 1 }, { q: "Instrumentul pentru măsurarea forței se numește:", a: ["Termometru", "Dinamometru", "Barometru", "Vitezometru"], c: 1 }, { q: "Viteza este mărimea fizică egală cu raportul dintre:", a: ["Distanță și Timp", "Timp și Distanță", "Forță și Masă", "Masă și Volum"], c: 0 }, { q: "Inerția este proprietatea corpurilor de a-și păstra:", a: ["Temperatura", "Starea de repaus sau mișcare", "Culoarea", "Greutatea"], c: 1 }, { q: "Care dintre următoarele este o unitate de timp?", a: ["Metrul", "Secunda", "Kilogramul", "Litru"], c: 1 }, { q: "Fenomenul de trecere din solid în lichid se numește:", a: ["Topire", "Solidificare", "Condensare", "Vaporizare"], c: 0 }, { q: "1 litru de apă cântărește aproximativ:", a: ["100g", "1kg", "10kg", "500g"], c: 1 }, { q: "Unitatea de măsură pentru Presiune este:", a: ["Newton", "Pascal", "Joule", "Watt"], c: 1 }, { q: "Traiectoria unui corp lăsat să cadă liber este:", a: ["Verticală", "Orizontală", "Circulară", "Sinusoidală"], c: 0 } ],
-            logic: [ { q: "Dacă plouă, pământul e ud. Pământul nu e ud. Deci:", a: ["Plouă", "Nu plouă", "Va ploua", "Poate plouă"], c: 1 }, { q: "Ce este mai greu? Un kg de pene sau un kg de fier?", a: ["Fierul", "Penele", "Sunt egale", "Depinde de vreme"], c: 2 }, { q: "Mama Mariei are 3 fiice: Ana, Irina și ... ?", a: ["Elena", "Ioana", "Maria", "Carmen"], c: 2 }, { q: "Câte luni din an au 28 de zile?", a: ["Una singură", "Toate lunile", "Niciuna", "Februarie"], c: 1 }, { q: "Ieri a fost Joi. Ce zi va fi poimâine?", a: ["Duminică", "Sâmbătă", "Luni", "Vineri"], c: 0 }, { q: "Într-o cursă, depășești persoana de pe locul 2. Pe ce loc ești?", a: ["Locul 1", "Locul 2", "Locul 3", "Ultimul"], c: 1 }, { q: "Ce obiect are dinți dar nu poate mușca?", a: ["Câinele", "Pieptenele", "Furculița", "Rechinul"], c: 1 }, { q: "Care număr nu se potrivește: 3, 5, 7, 9, 11?", a: ["5", "9", "7", "11"], c: 1 }, { q: "Un medic îți dă 3 pastile, una la jumătate de oră. Cât durează?", a: ["1.5 ore", "1 oră", "2 ore", "30 min"], c: 1 }, { q: "Câte laturi are un cerc?", a: ["Una", "Două", "0 (infinit)", "Patru"], c: 2 } ]
-        };
 
         function initQuestions() {
-            const procMath = generateMathQuestions(200);
-            const procPhys = generatePhysicsQuestions(200);
-            const procLogic = generateLogicQuestions(200);
-            database.math = shuffle([...staticDatabase.math, ...procMath]);
-            database.physics = shuffle([...staticDatabase.physics, ...procPhys]);
-            database.logic = shuffle([...staticDatabase.logic, ...procLogic]);
+            // 1. Static Data
+            database.math.easy = [...staticData.math.easy];
+            database.math.medium = [...staticData.math.medium];
+            database.math.hard = [...staticData.math.hard];
+            
+            database.physics.easy = [...staticData.physics.easy];
+            database.physics.medium = [...staticData.physics.medium];
+            database.physics.hard = [...staticData.physics.hard];
+            
+            database.logic.easy = [...staticData.logic.easy];
+            database.logic.medium = [...staticData.logic.medium];
+            database.logic.hard = [...staticData.logic.hard];
+
+            // 2. Procedural Data (Add 20 of each type/level)
+            const mathGen = generateMathQs(20);
+            database.math.easy.push(...mathGen.easy);
+            database.math.medium.push(...mathGen.medium);
+            database.math.hard.push(...mathGen.hard);
+
+            const physGen = generatePhysicsQs(20);
+            database.physics.easy.push(...physGen.easy);
+            database.physics.medium.push(...physGen.medium);
+            database.physics.hard.push(...physGen.hard);
+
+            // 3. Shuffle
+            for(let cat in database) {
+                for(let diff in database[cat]) {
+                    database[cat][diff] = shuffle(database[cat][diff]);
+                }
+            }
             console.log("Database initialized.");
         }
 
