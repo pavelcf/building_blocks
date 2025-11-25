@@ -140,7 +140,7 @@
                             <i class="fas fa-calculator"></i>
                         </div>
                         <h3 class="font-bold text-gray-700">Matematică</h3>
-                        <p class="text-xs text-gray-500 text-center mt-2">Ecuații, Geometrie, Numere</p>
+                        <p class="text-xs text-gray-500 text-center mt-2">Ecuații, Fracții, Procente</p>
                     </button>
 
                     <button onclick="selectCategory('physics')" class="flex flex-col items-center p-6 bg-purple-50 hover:bg-purple-100 rounded-xl border-2 border-purple-200 transition-all hover:-translate-y-1">
@@ -148,7 +148,7 @@
                             <i class="fas fa-atom"></i>
                         </div>
                         <h3 class="font-bold text-gray-700">Fizică</h3>
-                        <p class="text-xs text-gray-500 text-center mt-2">Mișcare, Forțe, Densitate</p>
+                        <p class="text-xs text-gray-500 text-center mt-2">Forțe, Unități, Fenomene</p>
                     </button>
 
                     <button onclick="selectCategory('logic')" class="flex flex-col items-center p-6 bg-emerald-50 hover:bg-emerald-100 rounded-xl border-2 border-emerald-200 transition-all hover:-translate-y-1">
@@ -156,7 +156,7 @@
                             <i class="fas fa-puzzle-piece"></i>
                         </div>
                         <h3 class="font-bold text-gray-700">Logică</h3>
-                        <p class="text-xs text-gray-500 text-center mt-2">Deducție, Șiruri, Probleme</p>
+                        <p class="text-xs text-gray-500 text-center mt-2">Deducție, Serii, Perspicacitate</p>
                     </button>
                 </div>
             </div>
@@ -272,6 +272,181 @@
         // Utilities
         function rInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
         function shuffle(array) { return array.sort(() => Math.random() - 0.5); }
+        function gcd(a, b) { return b == 0 ? a : gcd(b, a % b); }
+
+        /**
+         * ------------------------------------------------------------------
+         * DATA GENERATION - ADVANCED
+         * ------------------------------------------------------------------
+         */
+        function finalizeQs(list) {
+            return list.map(item => {
+                const correctVal = item.a[0];
+                const shuffledA = shuffle([...item.a]);
+                return { q: item.q, a: shuffledA, c: shuffledA.indexOf(correctVal) };
+            });
+        }
+
+        function generateMathQs(count) {
+            let easy = [], medium = [], hard = [];
+            
+            for(let i=0; i<count; i++) {
+                // --- EASY (Arithmetic, Order Ops, Perimeter) ---
+                let a = rInt(2, 20), b = rInt(2, 20);
+                // 1. Addition
+                easy.push({ q: `Calculați: ${a} + ${b}`, a: [`${a+b}`, `${a+b+2}`, `${a+b-1}`, `${a+b+10}`], c:0 });
+                // 2. Order of operations simple
+                let c = rInt(2,5);
+                easy.push({ q: `Calculați: ${a} + ${b} × ${c}`, a: [`${a + b*c}`, `${(a+b)*c}`, `${a + b*c + 2}`, `${a*c + b}`], c:0 });
+                // 3. Perimeter Square
+                easy.push({ q: `Perimetrul unui pătrat cu latura ${a} cm este:`, a: [`${4*a} cm`, `${a*a} cm`, `${2*a} cm`, `${a+4} cm`], c:0 });
+                
+                // --- MEDIUM (Linear Eq simple, Fractions, Percent) ---
+                // 4. Linear Eq ax = b
+                let x = rInt(2,12), m = rInt(2,9), res = m*x;
+                medium.push({ q: `Rezolvă: ${m}x = ${res}`, a: [`${x}`, `${x+1}`, `${x-1}`, `${x*2}`], c:0 });
+                // 5. Fraction Addition (Same Denom)
+                let d = rInt(2, 10), n1 = rInt(1, d-1), n2 = rInt(1, d-1);
+                medium.push({ q: `Calculați: ${n1}/${d} + ${n2}/${d}`, a: [`${n1+n2}/${d}`, `${n1+n2}/${d+d}`, `${Math.abs(n1-n2)}/${d}`, `1`], c:0 });
+                // 6. Percentage
+                let p = rInt(1, 9) * 10, val = rInt(2, 20) * 10;
+                medium.push({ q: `Cât este ${p}% din ${val}?`, a: [`${(p*val)/100}`, `${(p*val)/10}`, `${val/2}`, `${p+val}`], c:0 });
+                // 7. Integer + Fraction
+                medium.push({ q: `Calculați: 1 + 1/${a}`, a: [`${a+1}/${a}`, `${a}/${a+1}`, `1/${a}`, `${a-1}/${a}`], c:0 });
+
+                // --- HARD (Linear Eq mixed, Powers, Comparison) ---
+                // 8. Linear Eq ax + b = c (mixed signs)
+                let xH = rInt(-5, 5), aH = rInt(2, 5) * (Math.random()<.5?1:-1), bH = rInt(1, 10) * (Math.random()<.5?1:-1);
+                let cH = aH * xH + bH;
+                let sign = bH < 0 ? '-' : '+';
+                hard.push({ q: `Rezolvă: ${aH}x ${sign} ${Math.abs(bH)} = ${cH}`, a: [`${xH}`, `${-xH}`, `${xH+1}`, `${0}`], c:0 });
+                // 9. Powers
+                hard.push({ q: `Calculați: (-${c})³`, a: [`${-c*c*c}`, `${c*c*c}`, `${-3*c}`, `${c+3}`], c:0 });
+                // 10. Comparison fractions
+                let num = rInt(1, 5);
+                hard.push({ q: `Compară: ${num}/2 și ${num}/3`, a: [`${num}/2 > ${num}/3`, `${num}/2 < ${num}/3`, `Egale`, `Nu se poate`], c:0 });
+            }
+            return { easy: finalizeQs(easy), medium: finalizeQs(medium), hard: finalizeQs(hard) };
+        }
+
+        function generatePhysicsQs(count) {
+            let easy = [], medium = [], hard = [];
+            
+            const units = [
+                {name: "Forța", u: "Newton (N)"}, {name: "Masa", u: "Kilogram (kg)"}, {name: "Timpul", u: "Secunda (s)"},
+                {name: "Lungimea", u: "Metrul (m)"}, {name: "Viteza", u: "m/s"}, {name: "Densitatea", u: "kg/m³"}
+            ];
+
+            for(let i=0; i<count; i++) {
+                // --- EASY (Units, Definitions, Basic Weight) ---
+                // 1. Unit Identification
+                let uObj = units[rInt(0, units.length-1)];
+                easy.push({ q: `Unitatea de măsură pentru ${uObj.name} este:`, a: [`${uObj.u}`, `Pascal (Pa)`, `Joule (J)`, `Watt (W)`], c:0 });
+                // 2. Force Definition
+                easy.push({ q: `Forța este o mărime fizică:`, a: [`Vectorială`, `Scalară`, `Fundamentală`, `Adimensională`], c:0 });
+                // 3. Simple Weight
+                let m = rInt(1,10);
+                easy.push({ q: `Greutatea unui corp de ${m}kg (g=10N/kg) este:`, a: [`${m*10}N`, `${m}N`, `${m/10}N`, `${m+10}N`], c:0 });
+
+                // --- MEDIUM (Formulas, Velocity, Density) ---
+                // 4. Formula Match
+                let forms = [
+                    {n: "Greutate", f: "G = m · g"}, {n: "Viteză", f: "v = d / t"}, 
+                    {n: "Densitate", f: "ρ = m / V"}, {n: "Presiune", f: "p = F / S"}
+                ];
+                let fObj = forms[rInt(0, forms.length-1)];
+                medium.push({ q: `Formula pentru ${fObj.n} este:`, a: [`${fObj.f}`, `F = m · a`, `L = F · d`, `E = m · c²`], c:0 });
+                // 5. Velocity Calc
+                let v = rInt(2, 20), t = rInt(2, 10), d = v * t;
+                medium.push({ q: `Dacă d=${d}m și t=${t}s, viteza este:`, a: [`${v} m/s`, `${d} m/s`, `${v*2} m/s`, `${t} m/s`], c:0 });
+                // 6. Density Calc
+                let rho = rInt(2, 8)*100, V = rInt(2,5), mass = rho*V;
+                medium.push({ q: `Aflați ρ dacă m=${mass}kg și V=${V}m³:`, a: [`${rho} kg/m³`, `${mass} kg/m³`, `${rho/10} kg/m³`, `${V*100} kg/m³`], c:0 });
+                // 7. Unit Conversion Simple
+                let km = rInt(1, 10);
+                medium.push({ q: `${km} km în metri înseamnă:`, a: [`${km*1000} m`, `${km*100} m`, `${km*10} m`, `${km/1000} m`], c:0 });
+
+                // --- HARD (Pressure, Work, Complex Conversion) ---
+                // 8. Pressure Calc
+                let F = rInt(10, 100), S = rInt(2, 5), p = F/S; // Integers preferably? Let's force F to be multiple
+                F = p * S * 10; // Ensure scale
+                p = F / S;
+                hard.push({ q: `Calculați presiunea dacă F=${F}N și S=${S}m²:`, a: [`${p} Pa`, `${F} Pa`, `${S} Pa`, `${p*10} Pa`], c:0 });
+                // 9. Mechanical Work
+                let Fw = rInt(5, 20), dw = rInt(2, 10);
+                hard.push({ q: `Lucrul mecanic (L=F·d) pentru F=${Fw}N, d=${dw}m:`, a: [`${Fw*dw} J`, `${Fw} J`, `${Fw+dw} J`, `${Fw/dw} J`], c:0 });
+                // 10. Velocity Conversion
+                let ms = rInt(5, 25); // m/s
+                let kmh = ms * 3.6;
+                hard.push({ q: `Transformați ${ms} m/s în km/h:`, a: [`${kmh} km/h`, `${ms} km/h`, `${ms*10} km/h`, `${ms/3.6} km/h`], c:0 });
+            }
+            return { easy: finalizeQs(easy), medium: finalizeQs(medium), hard: finalizeQs(hard) };
+        }
+
+        function generateLogicQs(count) {
+            let easy = [], medium = [], hard = [];
+            const days = ["Luni", "Marți", "Miercuri", "Joi", "Vineri", "Sâmbătă", "Duminică"];
+            
+            for(let i=0; i<count; i++) {
+                // --- EASY ---
+                // 1. Days
+                let start = rInt(0, 6), off = rInt(1, 3), end = (start + off) % 7;
+                easy.push({ q: `Azi e ${days[start]}. Ce zi va fi peste ${off} zile?`, a: [`${days[end]}`, `${days[(end+1)%7]}`, `${days[(end+2)%7]}`, `${days[(end-1+7)%7]}`], c:0 });
+                // 2. Odd One Out (Numbers)
+                easy.push({ q: `Care număr nu se potrivește: 2, 4, 6, 9, 8?`, a: [`9`, `2`, `6`, `8`], c:0 });
+                // 3. Simple Dice
+                easy.push({ q: `Care este șansa să dai 7 cu un singur zar normal?`, a: [`0%`, `50%`, `16%`, `100%`], c:0 });
+
+                // --- MEDIUM ---
+                // 4. Series +N
+                let s1 = rInt(1,10), step = rInt(2,5);
+                medium.push({ q: `Continuă: ${s1}, ${s1+step}, ${s1+step*2}, ...`, a: [`${s1+step*3}`, `${s1+step*3+1}`, `${s1+step*3-1}`, `${s1+step*4}`], c:0 });
+                // 5. Clock Math
+                let h = rInt(1, 10);
+                medium.push({ q: `Acum e ora ${h}:00. Peste 90 minute va fi:`, a: [`${h+1}:30`, `${h+2}:00`, `${h+1}:00`, `${h}:90`], c:0 });
+                // 6. Directions
+                medium.push({ q: `Ești cu fața la Nord. Te întorci la dreapta de 2 ori. Unde privești?`, a: [`Sud`, `Est`, `Vest`, `Nord`], c:0 });
+                // 7. Family Logic
+                medium.push({ q: `Fratele tatălui tău este:`, a: [`Unchiul`, `Bunicul`, `Vărul`, `Nepotul`], c:0 });
+
+                // --- HARD ---
+                // 8. Series *N
+                let s2 = rInt(2,5), m = 2;
+                hard.push({ q: `Urmează: ${s2}, ${s2*m}, ${s2*m*m}, ...`, a: [`${s2*m*m*m}`, `${s2*m*m+1}`, `${s2*m*3}`, `${s2+10}`], c:0 });
+                // 9. Age Problem
+                let myAge = rInt(10, 20);
+                hard.push({ q: `Eu am ${myAge} ani. Sora mea are jumătate. Peste 5 ani sora va avea:`, a: [`${(myAge/2)+5}`, `${myAge/2}`, `${myAge+5}`, `${(myAge+5)/2}`], c:0 });
+                // 10. Anagrams (Simple School words)
+                let words = [
+                    {s: "ELVE", c: "ELEV"}, {s: "TECAI", c: "CAIET"}, {s: "LOASAC", c: "SCOALA"}
+                ];
+                let w = words[rInt(0, words.length-1)];
+                hard.push({ q: `Ce cuvânt este amestecat aici: "${w.s}"?`, a: [`${w.c}`, `MASA`, `CARTE`, `PIX`], c:0 });
+            }
+            return { easy: finalizeQs(easy), medium: finalizeQs(medium), hard: finalizeQs(hard) };
+        }
+
+        function initQuestions() {
+            // 1. Generate Procedural Data (Add 50 of each type/level for variety)
+            const count = 50;
+            
+            const mathGen = generateMathQs(count);
+            database.math.easy = shuffle(mathGen.easy);
+            database.math.medium = shuffle(mathGen.medium);
+            database.math.hard = shuffle(mathGen.hard);
+
+            const physGen = generatePhysicsQs(count);
+            database.physics.easy = shuffle(physGen.easy);
+            database.physics.medium = shuffle(physGen.medium);
+            database.physics.hard = shuffle(physGen.hard);
+
+            const logicGen = generateLogicQs(count);
+            database.logic.easy = shuffle(logicGen.easy);
+            database.logic.medium = shuffle(logicGen.medium);
+            database.logic.hard = shuffle(logicGen.hard);
+
+            console.log("Database initialized with dynamic content.");
+        }
 
         /**
          * ------------------------------------------------------------------
@@ -413,13 +588,37 @@
         }
 
         function fetchFromDatabase(cat, diff) {
-            const pool = database[cat][diff];
+            let pool = database[cat][diff];
+
+            // Check for exhaustion and REGENERATE automatically
             if (!pool || pool.length === 0) { 
-                showToast("Nu mai sunt întrebări în această categorie!", true); 
-                resetToCategories();
-                return; 
+                console.log(`Pool empty for ${cat} - ${diff}. Regenerating...`);
+                
+                let newQsObj;
+                const count = 10;
+
+                if (cat === 'math') newQsObj = generateMathQs(count);
+                else if (cat === 'physics') newQsObj = generatePhysicsQs(count);
+                else if (cat === 'logic') newQsObj = generateLogicQs(count); // Now we have Logic generator!
+
+                if (newQsObj && newQsObj[diff] && newQsObj[diff].length > 0) {
+                    database[cat][diff] = shuffle(newQsObj[diff]);
+                    pool = database[cat][diff];
+                    showToast("S-au generat întrebări noi!", false);
+                } else {
+                    showToast("Nu mai sunt întrebări. Încearcă altă categorie.", true); 
+                    resetToCategories();
+                    return; 
+                }
             }
-            const qData = pool[Math.floor(Math.random() * pool.length)];
+
+            // Pick random index
+            const index = Math.floor(Math.random() * pool.length);
+            const qData = pool[index];
+            
+            // REMOVE from pool immediately so it's not asked again until regen
+            pool.splice(index, 1);
+
             displayQuestion(qData);
         }
 
@@ -486,172 +685,6 @@
                 title.className = "text-2xl font-bold mb-2 text-red-600";
                 msg.innerText = "Nu te descuraja! Mai încearcă o dată.";
             }
-        }
-
-        /**
-         * ------------------------------------------------------------------
-         * DATA GENERATION (TIERED)
-         * ------------------------------------------------------------------
-         */
-        
-        // Static Data - Significantly Expanded for Grade 7 MD Curriculum
-        const staticData = {
-            math: {
-                easy: [
-                    { q: "Care este opusul numărului 5?", a: ["-5", "5", "0", "1/5"], c: 0 },
-                    { q: "Calculați: 3 × 7", a: ["21", "10", "24", "18"], c: 0 },
-                    { q: "Suma unghiurilor într-un triunghi este:", a: ["180°", "90°", "360°", "100°"], c: 0 },
-                    { q: "Cât face 10 + (-3)?", a: ["7", "13", "-7", "-13"], c: 0 },
-                    { q: "Care număr este mai mare: -5 sau -2?", a: ["-2", "-5", "Sunt egale", "Nu se poate compara"], c: 0 },
-                    { q: "Un pătrat are latura de 4 cm. Perimetrul este:", a: ["16 cm", "12 cm", "8 cm", "20 cm"], c: 0 },
-                    { q: "Numărul 17 este:", a: ["Prim", "Compus", "Par", "Negativ"], c: 0 }
-                ],
-                medium: [
-                    { q: "Rezolvați: 2x = 14", a: ["x = 7", "x = 12", "x = 28", "x = 6"], c: 0 },
-                    { q: "Calculați: 5² + 3", a: ["28", "13", "22", "30"], c: 0 },
-                    { q: "Aria unui dreptunghi cu L=10cm și l=5cm este:", a: ["50 cm²", "30 cm²", "15 cm²", "100 cm²"], c: 0 },
-                    { q: "Care este 20% din 50?", a: ["10", "25", "15", "5"], c: 0 },
-                    { q: "Dacă a = -3 și b = 4, cât este a × b?", a: ["-12", "12", "7", "-1"], c: 0 },
-                    { q: "Simplificați fracția 12/16", a: ["3/4", "2/3", "4/5", "1/2"], c: 0 }
-                ],
-                hard: [
-                    { q: "Rezolvați: 3x + 5 = 20", a: ["x = 5", "x = 4", "x = 6", "x = 3"], c: 0 },
-                    { q: "Calculați: √225", a: ["15", "25", "12", "13"], c: 0 },
-                    { q: "Un cerc are raza de 3cm. Aria este (π≈3.14)?", a: ["~28.26 cm²", "~18.84 cm²", "~9 cm²", "~30 cm²"], c: 0 },
-                    { q: "Volumul unui cub cu latura de 3cm este:", a: ["27 cm³", "9 cm³", "54 cm³", "18 cm³"], c: 0 },
-                    { q: "Media aritmetică a numerelor 12, 18 și 30 este:", a: ["20", "22", "15", "25"], c: 0 }
-                ]
-            },
-            physics: {
-                easy: [
-                    { q: "Unitatea de măsură pentru Timp este:", a: ["Secunda", "Metrul", "Kilogramul", "Newton"], c: 0 },
-                    { q: "Simbolul pentru Viteză este:", a: ["v", "t", "d", "F"], c: 0 },
-                    { q: "Instrumentul pentru măsurarea masei este:", a: ["Cântarul", "Termometrul", "Ruleta", "Ceasul"], c: 0 },
-                    { q: "Apa îngheață la temperatura de:", a: ["0°C", "100°C", "10°C", "-10°C"], c: 0 },
-                    { q: "Masa se notează cu litera:", a: ["m", "V", "t", "G"], c: 0 }
-                ],
-                medium: [
-                    { q: "Formula vitezei este:", a: ["v = d / t", "v = d × t", "v = t / d", "v = m × a"], c: 0 },
-                    { q: "Dacă d = 100m și t = 10s, viteza este:", a: ["10 m/s", "1000 m/s", "90 m/s", "0.1 m/s"], c: 0 },
-                    { q: "Densitatea (ρ) este raportul dintre:", a: ["Masă și Volum", "Greutate și Masă", "Volum și Timp", "Forță și Suprafață"], c: 0 },
-                    { q: "1 kg de pene vs 1 kg de plumb. Care are masa mai mare?", a: ["Sunt egale", "Plumbul", "Penele", "Depinde"], c: 0 },
-                    { q: "Unitatea de măsură pentru Forță este:", a: ["Newton", "Pascal", "Joule", "Watt"], c: 0 }
-                ],
-                hard: [
-                    { q: "Transformați 72 km/h în m/s:", a: ["20 m/s", "10 m/s", "25 m/s", "15 m/s"], c: 0 },
-                    { q: "Un corp are m=2kg. Greutatea sa (g=10N/kg) este:", a: ["20 N", "2 N", "5 N", "200 N"], c: 0 },
-                    { q: "Presiunea este raportul dintre:", a: ["Forță și Suprafață", "Masă și Volum", "Viteză și Timp", "Densitate și Masă"], c: 0 },
-                    { q: "Densitatea apei este aproximativ:", a: ["1000 kg/m³", "100 kg/m³", "1 kg/m³", "10 kg/m³"], c: 0 },
-                    { q: "Fenomenul de menținere a stării de repaus sau MRU se numește:", a: ["Inerție", "Frecare", "Gravitație", "Elasticitate"], c: 0 }
-                ]
-            },
-            logic: {
-                easy: [
-                    { q: "Ce urmează: Luni, Marți, ...?", a: ["Miercuri", "Joi", "Duminică", "Vineri"], c: 0 },
-                    { q: "Dacă ai 3 mere și mănânci unul, câte rămân?", a: ["Două", "Unul", "Trei", "Niciunul"], c: 0 },
-                    { q: "Câte picioare are o pisică normală?", a: ["4", "2", "6", "8"], c: 0 },
-                    { q: "Ce este mai mare: un elefant sau un șoarece?", a: ["Elefantul", "Șoarecele", "Sunt egali", "Depinde"], c: 0 }
-                ],
-                medium: [
-                    { q: "Continuă șirul: 2, 4, 6, 8, ...", a: ["10", "9", "12", "11"], c: 0 },
-                    { q: "Mama Mariei are 3 fete: Ana, Irina și ...?", a: ["Maria", "Elena", "Ioana", "Carmen"], c: 0 },
-                    { q: "Ce obiect are dinți dar nu mușcă?", a: ["Pieptenele", "Câinele", "Rechinul", "Vampirul"], c: 0 },
-                    { q: "Ieri a fost Joi. Ce zi va fi poimâine?", a: ["Duminică", "Sâmbătă", "Luni", "Vineri"], c: 0 }
-                ],
-                hard: [
-                    { q: "Continuă șirul: 1, 1, 2, 3, 5, 8, ...", a: ["13", "10", "11", "15"], c: 0 },
-                    { q: "Un medic îți dă 3 pastile, una la 30 min. Cât durează?", a: ["1 oră", "1.5 ore", "2 ore", "30 min"], c: 0 },
-                    { q: "Într-o cursă, depășești locul 2. Pe ce loc ești?", a: ["Locul 2", "Locul 1", "Locul 3", "Ultimul"], c: 0 },
-                    { q: "Câte laturi are un cerc?", a: ["Niciuna (sau infinit)", "Una", "Două", "Patru"], c: 0 },
-                    { q: "Ce trece prin orașe și câmpii dar nu se mișcă?", a: ["Drumul", "Râul", "Vântul", "Norul"], c: 0 }
-                ]
-            }
-        };
-
-        // Procedural Generators
-        function finalizeQs(list) {
-            return list.map(item => {
-                const correctVal = item.a[0];
-                const shuffledA = shuffle([...item.a]);
-                return { q: item.q, a: shuffledA, c: shuffledA.indexOf(correctVal) };
-            });
-        }
-
-        function generateMathQs(count) {
-            let easy = [], medium = [], hard = [];
-            
-            // Easy: Arithmetic
-            for(let i=0; i<count; i++) {
-                let a = rInt(1, 20), b = rInt(1, 20);
-                easy.push({ q: `Calculați: ${a} + ${b}`, a: [`${a+b}`, `${a+b+1}`, `${a+b-1}`, `${a+b+2}`], c: 0 });
-            }
-            // Medium: Linear eq ax = b
-            for(let i=0; i<count; i++) {
-                let x = rInt(2, 12), a = rInt(2, 9), b = a * x;
-                medium.push({ q: `Află x din ecuația: ${a}x = ${b}`, a: [`${x}`, `${x+1}`, `${x-1}`, `${x*2}`], c: 0 });
-            }
-            // Hard: ax + b = c
-            for(let i=0; i<count; i++) {
-                let x = rInt(2, 12), a = rInt(2, 9), b = rInt(1, 20), c = a * x + b;
-                hard.push({ q: `Rezolvă: ${a}x + ${b} = ${c}`, a: [`${x}`, `${x+2}`, `${x-2}`, `${x+5}`], c: 0 });
-            }
-            return { easy: finalizeQs(easy), medium: finalizeQs(medium), hard: finalizeQs(hard) };
-        }
-
-        function generatePhysicsQs(count) {
-            let easy = [], medium = [], hard = [];
-            
-            // Easy: Definitions are mostly static, maybe generic units
-            for(let i=0; i<count; i++) {
-                easy.push({ q: "Simbolul 'm' în fizică reprezintă de obicei:", a: ["Masa sau Metrul", "Minutul", "Materia", "Mecanica"], c: 0 });
-            }
-            // Medium: v = d/t
-            for(let i=0; i<count; i++) {
-                let v = rInt(5, 20), t = rInt(2, 10), d = v * t;
-                medium.push({ q: `Un mobil parcurge ${d}m în ${t}s. Viteza este:`, a: [`${v} m/s`, `${v*2} m/s`, `${d} m/s`, `${t} m/s`], c: 0 });
-            }
-            // Hard: G = mg
-            for(let i=0; i<count; i++) {
-                let m = rInt(200, 800), g = 10; // m in grams? No, let's use kg for hard conversion maybe? Keep simple for hard logic
-                let mass = m / 1000; // kg
-                let G = mass * g;
-                hard.push({ q: `Un corp are ${m} grame. Greutatea (g=10N/kg) este:`, a: [`${G} N`, `${m} N`, `${G*10} N`, `${mass} N`], c: 0 });
-            }
-            return { easy: finalizeQs(easy), medium: finalizeQs(medium), hard: finalizeQs(hard) };
-        }
-
-        function initQuestions() {
-            // 1. Static Data
-            database.math.easy = [...staticData.math.easy];
-            database.math.medium = [...staticData.math.medium];
-            database.math.hard = [...staticData.math.hard];
-            
-            database.physics.easy = [...staticData.physics.easy];
-            database.physics.medium = [...staticData.physics.medium];
-            database.physics.hard = [...staticData.physics.hard];
-            
-            database.logic.easy = [...staticData.logic.easy];
-            database.logic.medium = [...staticData.logic.medium];
-            database.logic.hard = [...staticData.logic.hard];
-
-            // 2. Procedural Data (Add 20 of each type/level)
-            const mathGen = generateMathQs(20);
-            database.math.easy.push(...mathGen.easy);
-            database.math.medium.push(...mathGen.medium);
-            database.math.hard.push(...mathGen.hard);
-
-            const physGen = generatePhysicsQs(20);
-            database.physics.easy.push(...physGen.easy);
-            database.physics.medium.push(...physGen.medium);
-            database.physics.hard.push(...physGen.hard);
-
-            // 3. Shuffle
-            for(let cat in database) {
-                for(let diff in database[cat]) {
-                    database[cat][diff] = shuffle(database[cat][diff]);
-                }
-            }
-            console.log("Database initialized.");
         }
 
         /**
