@@ -87,13 +87,16 @@
         </div>
 
         <!-- Instructions Helper -->
-        <div class="absolute top-32 right-4 bg-black/50 text-white p-2 rounded text-xs text-right backdrop-blur-sm">
-            <b>SHIFT + Click:</b> Acțiune (Build/Delete)<br>
-            <b>Click + Drag:</b> Rotește Camera<br>
-            <b>Scroll:</b> Zoom<br>
-            <b>W, A, S, D:</b> Mișcă Camera<br>
-            <b>Q, E:</b> Sus / Jos<br>
-            <span class="text-yellow-400">Pont: Folosește butoanele de sus<br>pentru a schimba modul!</span>
+        <div class="absolute top-32 right-4 bg-black/50 text-white p-2 rounded text-xs text-right backdrop-blur-sm pointer-events-none">
+            <div id="mode-instructions">
+                <b>Mod: CAMERĂ LIBERĂ</b><br>
+                <b>WASD / Săgeți:</b> Mișcă Camera<br>
+                <b>Click + Drag:</b> Rotește<br>
+                <b>Scroll:</b> Zoom<br>
+            </div>
+            <hr class="my-1 border-gray-500">
+            <b>SHIFT + Click:</b> Construiește<br>
+            <span class="text-yellow-400">Apasă butonul de jos pentru a<br>controla caracterul!</span>
         </div>
 
         <!-- Footer: Block Selector -->
@@ -108,10 +111,15 @@
                 <button onclick="selectBlock('glass')" id="btn-glass" class="block-btn w-12 h-12 rounded-lg border-2 border-transparent hover:scale-105 transition-all relative" title="Sticlă"></button>
             </div>
             
-            <!-- Reset Camera Button (Bottom Right) -->
-            <button onclick="resetCamera()" class="absolute right-4 bottom-2 bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-full shadow-lg border-2 border-slate-500 transition-all" title="Resetează Camera">
-                <i class="fas fa-video"></i>
-            </button>
+            <!-- Control Toggle Button -->
+            <div class="absolute right-4 bottom-2 flex flex-col gap-2">
+                <div onclick="toggleControlMode()" id="btn-toggle-mode" class="bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded-full shadow-lg border-2 border-indigo-400 transition-all" title="Schimbă Mod Control (Cameră/Caracter)">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <button onclick="resetCamera()" class="bg-slate-700 hover:bg-slate-600 text-white p-3 rounded-full shadow-lg border-2 border-slate-500 transition-all" title="Resetează Camera">
+                    <i class="fas fa-video"></i>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -301,6 +309,12 @@
         var startMousePos = {x: 0, y: 0};
         var keysPressed = {};
         
+        // Character & Control
+        var character, characterVelocity = new THREE.Vector3(0,0,0);
+        var controlMode = 'camera'; // 'camera' or 'character'
+        var canJump = false;
+        var walkCycle = 0; // For animation
+
         // Game State
         const META_KEY = 'md_builder_meta';
         const SAVE_PREFIX = 'md_builder_data_';
@@ -956,6 +970,14 @@
             if (rollOverMaterial) {
                 rollOverMaterial.color.setHex(activeTool === 'destroy' ? 0xff0000 : 0xffffff);
             }
+            
+            // Update instruction text
+            const instructions = document.getElementById('mode-instructions');
+            if (controlMode === 'camera') {
+                instructions.innerHTML = `<b>Mod: CAMERĂ LIBERĂ</b><br><b>WASD / Săgeți:</b> Mișcă Camera<br><b>Click + Drag:</b> Rotește<br><b>Scroll:</b> Zoom<br>`;
+            } else {
+                instructions.innerHTML = `<b>Mod: CARACTER</b><br><b>WASD / Săgeți:</b> Mișcă Caracter<br><b>Space:</b> Salt<br><span class='text-yellow-300'>Camera urmărește caracterul</span>`;
+            }
         }
 
         function selectBlock(type) {
@@ -983,10 +1005,83 @@
 
         function resetCamera() {
             if (!camera || !controls) return;
-            camera.position.set(500, 800, 1300);
-            camera.lookAt(0, 0, 0);
-            controls.target.set(0, 0, 0);
-            controls.update();
+            
+            // If in character mode, reset camera relative to character
+            if (controlMode === 'character') {
+                const offset = new THREE.Vector3(0, 400, 600);
+                offset.applyAxisAngle(new THREE.Vector3(0,1,0), character.rotation.y);
+                camera.position.copy(character.position).add(offset);
+                camera.lookAt(character.position);
+            } else {
+                camera.position.set(500, 800, 1300);
+                camera.lookAt(0, 0, 0);
+                controls.target.set(0, 0, 0);
+                controls.update();
+            }
+        }
+        
+        function toggleControlMode() {
+            controlMode = controlMode === 'camera' ? 'character' : 'camera';
+            
+            if (controlMode === 'character') {
+                controls.enabled = false;
+                resetCamera();
+            } else {
+                controls.enabled = true;
+                controls.target.copy(character.position); // Focus orbit around where character was
+                controls.update();
+            }
+            
+            updateUI();
+            showToast(`Mod activat: ${controlMode === 'camera' ? 'Cameră Liberă' : 'Control Caracter'}`, false);
+        }
+
+        function createCharacter() {
+            // Simple Green "Creeper" Style Mesh
+            character = new THREE.Group();
+            character.userData = { legs: [] };
+            
+            const mat = new THREE.MeshLambertMaterial({ color: 0x00AA00 }); 
+            const darkMat = new THREE.MeshLambertMaterial({ color: 0x005500 }); // Feet/face details
+            
+            // Dimensions relative to 50 unit blocks
+            // Head
+            const head = new THREE.Mesh(new THREE.BoxGeometry(30, 30, 30), mat);
+            head.position.y = 55; 
+            
+            // Body
+            const body = new THREE.Mesh(new THREE.BoxGeometry(30, 40, 15), mat);
+            body.position.y = 20; 
+            
+            // Legs (4 legs for creeper)
+            const legGeo = new THREE.BoxGeometry(10, 20, 10);
+            
+            // Pivot points for legs to animate from top
+            function createLeg(x, z) {
+                const legGroup = new THREE.Group();
+                legGroup.position.set(x, 20, z); // Hip position
+                const legMesh = new THREE.Mesh(legGeo, darkMat);
+                legMesh.position.y = -10; // Offset so pivot is at top
+                legGroup.add(legMesh);
+                return legGroup;
+            }
+
+            const leg1 = createLeg(-10, 10);
+            const leg2 = createLeg(10, 10);
+            const leg3 = createLeg(-10, -10);
+            const leg4 = createLeg(10, -10);
+            
+            character.userData.legs = [leg1, leg2, leg3, leg4];
+
+            character.add(head);
+            character.add(body);
+            character.add(leg1); character.add(leg2);
+            character.add(leg3); character.add(leg4);
+            
+            // Start pos
+            character.position.set(0, 0, 0);
+            
+            scene.add(character);
         }
 
         function init3D() {
@@ -1040,6 +1135,8 @@
                 rollOverMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.5, transparent: true });
                 rollOverMesh = new THREE.Mesh(rollOverGeo, rollOverMaterial);
                 scene.add(rollOverMesh);
+                
+                createCharacter(); // Add Character
 
                 renderer = new THREE.WebGLRenderer({ antialias: true });
                 renderer.setPixelRatio(window.devicePixelRatio);
@@ -1071,12 +1168,19 @@
         }
 
         function rebuildWorld() {
-            // Clean existing
-            objects.forEach(obj => {
-                if(obj !== plane) scene.remove(obj);
+            // Clean existing blocks
+            const toRemove = [];
+            scene.children.forEach(child => {
+                if (child.userData.isBlock) toRemove.push(child);
             });
-            objects = [plane];
+            toRemove.forEach(child => {
+                scene.remove(child);
+                // also remove from objects for raycasting
+                const idx = objects.indexOf(child);
+                if(idx > -1) objects.splice(idx, 1);
+            });
 
+            // Re-add blocks from state
             state.blocks.forEach(bData => {
                 const geo = new THREE.BoxGeometry(50, 50, 50);
                 const mat = materials[bData.type];
@@ -1100,6 +1204,12 @@
         function onDocumentMouseMove(event) {
             event.preventDefault();
             mouse.set((event.clientX / window.innerWidth) * 2 - 1, -(event.clientY / window.innerHeight) * 2 + 1);
+            
+            if (controlMode === 'character') {
+                // In character mode, we still want to see where we point for building, 
+                // but raycasting works from camera view which is fine.
+            }
+            
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(objects);
             if (intersects.length > 0) {
@@ -1164,16 +1274,50 @@
         function onDocumentKeyDown(event) { 
             if(event.keyCode === 16) isShiftDown = true; 
             keysPressed[event.key.toLowerCase()] = true;
+            
+            // Space Jump for Character
+            if (event.code === 'Space' && controlMode === 'character' && canJump) {
+                characterVelocity.y = 20; // Jump force
+                canJump = false;
+            }
         }
         function onDocumentKeyUp(event) { 
             if(event.keyCode === 16) isShiftDown = false; 
             keysPressed[event.key.toLowerCase()] = false;
         }
+        
+        function checkCollision(pos) {
+            const padding = 15; // Character half-width
+            const height = 60; // Check up to shoulder height
+            
+            for(let b of state.blocks) {
+                // Block AABB
+                const minX = b.x - 25; const maxX = b.x + 25;
+                const minZ = b.z - 25; const maxZ = b.z + 25;
+                const minY = b.y - 25; const maxY = b.y + 25; // Top of block
+
+                // Character AABB at 'pos'
+                const cMinX = pos.x - padding; const cMaxX = pos.x + padding;
+                const cMinZ = pos.z - padding; const cMaxZ = pos.z + padding;
+                const cMinY = pos.y + 5;       const cMaxY = pos.y + height; // +5 to ignore small bumps or floor
+
+                // Check intersection
+                if (cMinX < maxX && cMaxX > minX &&
+                    cMinZ < maxZ && cMaxZ > minZ &&
+                    cMinY < maxY && cMaxY > minY) {
+                    return true; 
+                }
+            }
+            return false;
+        }
+
         function animate() { 
             requestAnimationFrame(animate); 
             
-            // Keyboard Movement Logic
-            if (controls && camera) {
+            if (!camera) return;
+
+            // 1. CAMERA MODE MOVEMENT
+            if (controlMode === 'camera' && controls) {
                 const speed = 15; // Movement speed
                 const direction = new THREE.Vector3();
                 camera.getWorldDirection(direction);
@@ -1185,37 +1329,31 @@
 
                 let moved = false;
 
-                // W or ArrowUp
                 if (keysPressed['w'] || keysPressed['arrowup']) {
                     camera.position.addScaledVector(direction, speed);
                     controls.target.addScaledVector(direction, speed);
                     moved = true;
                 }
-                // S or ArrowDown
                 if (keysPressed['s'] || keysPressed['arrowdown']) {
                     camera.position.addScaledVector(direction, -speed);
                     controls.target.addScaledVector(direction, -speed);
                     moved = true;
                 }
-                // A or ArrowLeft
                 if (keysPressed['a'] || keysPressed['arrowleft']) {
                     camera.position.addScaledVector(right, -speed);
                     controls.target.addScaledVector(right, -speed);
                     moved = true;
                 }
-                // D or ArrowRight
                 if (keysPressed['d'] || keysPressed['arrowright']) {
                     camera.position.addScaledVector(right, speed);
                     controls.target.addScaledVector(right, speed);
                     moved = true;
                 }
-                // E (Up)
                 if (keysPressed['e']) {
                     camera.position.y += speed;
                     controls.target.y += speed;
                     moved = true;
                 }
-                // Q (Down)
                 if (keysPressed['q']) {
                     camera.position.y -= speed;
                     controls.target.y -= speed;
@@ -1223,6 +1361,109 @@
                 }
 
                 if (moved) controls.update();
+            }
+            
+            // 2. CHARACTER MODE MOVEMENT
+            else if (controlMode === 'character' && character) {
+                const moveSpeed = 10;
+                const rotateSpeed = 0.05;
+                
+                // ROTATION
+                if (keysPressed['a'] || keysPressed['arrowleft']) {
+                    character.rotation.y += rotateSpeed;
+                }
+                if (keysPressed['d'] || keysPressed['arrowright']) {
+                    character.rotation.y -= rotateSpeed;
+                }
+                
+                // MOVEMENT VECTORS
+                const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), character.rotation.y);
+                
+                let moveX = 0;
+                let moveZ = 0;
+                let isMoving = false;
+
+                if (keysPressed['w'] || keysPressed['arrowup']) {
+                    moveX += forward.x * moveSpeed;
+                    moveZ += forward.z * moveSpeed;
+                    isMoving = true;
+                }
+                if (keysPressed['s'] || keysPressed['arrowdown']) {
+                    moveX -= forward.x * moveSpeed;
+                    moveZ -= forward.z * moveSpeed;
+                    isMoving = true;
+                }
+                
+                // COLLISION & MOVEMENT APPLICATION
+                // Try moving X first
+                const nextPos = character.position.clone();
+                nextPos.x += moveX;
+                if (!checkCollision(nextPos)) {
+                    character.position.x += moveX;
+                }
+                
+                // Try moving Z
+                nextPos.x = character.position.x; // Update X to current valid pos
+                nextPos.z += moveZ;
+                if (!checkCollision(nextPos)) {
+                    character.position.z += moveZ;
+                }
+                
+                // Animation
+                if (isMoving) {
+                    walkCycle += 0.2;
+                    const legs = character.userData.legs;
+                    if(legs) {
+                        legs[0].rotation.x = Math.sin(walkCycle) * 0.5;
+                        legs[1].rotation.x = Math.cos(walkCycle) * 0.5;
+                        legs[2].rotation.x = Math.cos(walkCycle) * 0.5;
+                        legs[3].rotation.x = Math.sin(walkCycle) * 0.5;
+                    }
+                } else {
+                    // Reset legs
+                    const legs = character.userData.legs;
+                    if(legs) legs.forEach(l => l.rotation.x = 0);
+                }
+                
+                // Gravity
+                characterVelocity.y -= 1; 
+                character.position.y += characterVelocity.y;
+                
+                // Simple Ground Collision (Plane y=0)
+                if (character.position.y <= 0) {
+                    character.position.y = 0;
+                    characterVelocity.y = 0;
+                    canJump = true;
+                }
+                
+                // Basic Block Collision (Landing on top)
+                const rayOrigin = character.position.clone();
+                rayOrigin.y += 50; 
+                raycaster.set(rayOrigin, new THREE.Vector3(0, -1, 0));
+                const intersects = raycaster.intersectObjects(objects);
+                
+                let groundY = 0;
+                for(let i=0; i<intersects.length; i++) {
+                    if (intersects[i].point.y > groundY) {
+                        groundY = intersects[i].point.y;
+                    }
+                }
+                
+                if (character.position.y < groundY) {
+                    character.position.y = groundY;
+                    characterVelocity.y = 0;
+                    canJump = true;
+                }
+
+                // Smart Camera Follow (Stay Behind)
+                // Distance (0, 400, 600)
+                const offset = new THREE.Vector3(0, 400, 600);
+                // Rotate offset to match character rotation so camera stays behind
+                offset.applyAxisAngle(new THREE.Vector3(0,1,0), character.rotation.y);
+                
+                const targetCamPos = character.position.clone().add(offset);
+                camera.position.lerp(targetCamPos, 0.1);
+                camera.lookAt(character.position);
             }
 
             if (renderer && scene && camera) renderer.render(scene, camera); 
