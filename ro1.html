@@ -570,8 +570,10 @@
                 // --- MEDIUM (Formulas, Velocity, Density) ---
                 // 4. Formula Match
                 let forms = [
-                    {n: "Greutate", f: "G = m · g"}, {n: "Viteză", f: "v = d / t"}, 
-                    {n: "Densitate", f: "ρ = m / V"}, {n: "Presiune", f: "p = F / S"}
+                    {n: "Greutate", f: "G = m · g"}, 
+                    {n: "Viteză", f: "v = d / t"}, 
+                    {n: "Densitate", f: "ρ = m / V"},
+                    {n: "Presiune", f: "p = F / S"}
                 ];
                 let fObj = forms[rInt(0, forms.length-1)];
                 medium.push({ q: `Formula pentru ${fObj.n} este:`, a: [`${fObj.f}`, `F = m · a`, `L = F · d`, `E = m · c²`], c:0 });
@@ -584,16 +586,20 @@
                 // 7. Unit Conversion Simple
                 let km = rInt(1, 10);
                 medium.push({ q: `${km} km în metri înseamnă:`, a: [`${km*1000} m`, `${km*100} m`, `${km*10} m`, `${km/1000} m`], c:0 });
+                
+                let metr = rInt(1, 10000);
+                medium.push({ q: `${metr} km în kilometri înseamnă:`, a: [`${metr*1000} m`, `${metr*10} m`, `${metr/10} m`, `${metr/1000} m`], c:3 });
+
 
                 // --- HARD (Pressure, Work, Complex Conversion) ---
                 // 8. Pressure Calc
                 let F = rInt(10, 100), S = rInt(2, 5), p = F/S; // Integers preferably? Let's force F to be multiple
                 F = p * S * 10; // Ensure scale
                 p = F / S;
-                hard.push({ q: `Calculați presiunea dacă F=${F}N și S=${S}m²:`, a: [`${p} Pa`, `${F} Pa`, `${S} Pa`, `${p*10} Pa`], c:0 });
+                //hard.push({ q: `Calculați presiunea dacă F=${F}N și S=${S}m²:`, a: [`${p} Pa`, `${F} Pa`, `${S} Pa`, `${p*10} Pa`], c:0 });
                 // 9. Mechanical Work
                 let Fw = rInt(5, 20), dw = rInt(2, 10);
-                hard.push({ q: `Lucrul mecanic (L=F·d) pentru F=${Fw}N, d=${dw}m:`, a: [`${Fw*dw} J`, `${Fw} J`, `${Fw+dw} J`, `${Fw/dw} J`], c:0 });
+                //hard.push({ q: `Lucrul mecanic (L=F·d) pentru F=${Fw}N, d=${dw}m:`, a: [`${Fw*dw} J`, `${Fw} J`, `${Fw+dw} J`, `${Fw/dw} J`], c:0 });
                 // 10. Velocity Conversion
                 let ms = rInt(5, 25); // m/s
                 let kmh = ms * 3.6;
